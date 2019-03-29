@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - geometry - NURBS</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				font-family: Monospace;
+				background-color: #f0f0f0;
+				margin: 0px;
+				overflow: hidden;
+			}
+			#info {
+				position: absolute;
+				top: 0px;
+				width: 100%;
+				padding: 5px;
+				text-align:center;
+			}
+		</style>
+	</head>
+	<body>
+		<canvas id="debug" style="position:absolute; left:100px"></canvas>
+
+		<div id="info"><a href="http://threejs.org" target="_blank" rel="noopener">three.js</a> - NURBS curve and surface example</div>
+
+		<script src="../build/three.js"></script>
+		<script src="js/curves/NURBSCurve.js"></script>
+		<script src="js/curves/NURBSSurface.js"></script>
+		<script src="js/curves/NURBSUtils.js"></script>
+
+		<script src="js/loaders/STLLoader.js"></script>
+
+		<script src="js/libs/stats.min.js"></script>
+
+		<script>
+
+			var start = Date.now();
+
+			var container, stats;
+
+			var camera, scene, renderer;
+			var group;
+
+			var targetRotation = 0;
+			var targetRotationOnMouseDown = 0;
+
+			var mouseX = 0;
+			var mouseXOnMouseDown = 0;
+
+			var windowHalfX = window.innerWidth / 2;
+
+			var stableControlPoints;
+			var perturbatedControlPoints;
+			var nurbsSurface;
+			var wavefront;
+			var mirror;
+			var lightSpeed = 100;
+			var wavefrontAmplitude = 300;
+
+			var lastTime = start;
+
+			var perturbationStartMs = 2000;
+			var perturbationTimeMs = 5000;
+
+			var mirrored = false;
+
+			init();
+			animate();
+
+			function init() {
+
+				container = document.createElement( 'div' );
+				document.body.appendChild( container );
+
+				var info = document.createElement( 'div' );
+				info.style.position = 'absolute';
+				info.style.top = '30px';
+				info.style.width = '100%';
+				info.style.textAlign = 'center';
+				info.innerHTML = 'Drag to spin';
+				container.appendChild( info );
+
+				camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 1, 2000 );
+				camera.position.set( 0, 150, 750 );
+
+				scene = new THREE.Scene();
+				scene.background = new THREE.Color( 0xf0f0f0 );
+
+				scene.add( new THREE.AmbientLight( 0x808080 ) );
+
+				var light = new THREE.DirectionalLight( 0xffffff, 1 );
+				light.position.set( 1, 1, 1 );
+				scene.add( light );
+
+				group = new THREE.Group();
+				group.position.y = 50;
+				scene.add( group );
+
+				// NURBS surface
+
+				// Default
+				nsControlPoints = [
+					[
+						new THREE.Vector4( - 200, - 200, 100, 1 ),
+						new THREE.Vector4( - 200, - 100, - 200, 1 ),
+						new THREE.Vector4( - 200, 100, 250, 1 ),
+						new THREE.Vector4( - 200, 200, - 100, 1 )
+					],
+					[
+						new THREE.Vector4( 0, - 200, 0, 1 ),
+						new THREE.Vector4( 0, - 100, - 100, 1 ),
+						new THREE.Vector4( 0, 100, 150, 1 ),
+						new THREE.Vector4( 0, 200, 0, 1 )
+					],
+					[
+						new THREE.Vector4( 200, - 200, - 100, 1 ),
+						new THREE.Vector4( 200, - 100, 200, 1 ),
+						new THREE.Vector4( 200, 100, - 250, 1 ),
+						new THREE.Vector4( 200, 200, 100, 1 )
+					]
+				];
+				var degree1 = 2;
+				var degree2 = 3;
+				var knots1 = [ 0, 0, 0, 1, 1, 1 ];
+				var knots2 = [ 0, 0, 0, 0, 1, 1, 1, 1 ];
+
+				// Custom normal to z axis
+				nsControlPoints = [
+					[
+						new THREE.Vector4( - 200, - 200, 0, 1 ),
+						new THREE.Vector4( - 200, - 100, 0, 1 ),
+						new THREE.Vector4( - 200, 100, 0, 1 ),
+						new THREE.Vector4( - 200, 200, 0, 1 )
+					],
+					[
+						new THREE.Vector4( 0, - 200, 0, 1 ),
+						new THREE.Vector4( 0, - 100, 0, 1 ),
+						new THREE.Vector4( 0, 100, 0, 1 ),
+						new THREE.Vector4( 0, 200, 0, 1 )
+					],
+					[
+						new THREE.Vector4( 200, - 200, 0, 1 ),
+						new THREE.Vector4( 200, - 100, 0, 1 ),
+						new THREE.Vector4( 200, 100, 0, 1 ),
+						new THREE.Vector4( 200, 200, 0, 1 )
+					]
+				];
+
+
+				// Custom normal to x axis
+				stableControlPoints = [
+					[
+						new THREE.Vector4( 0, - 200, - 200, 1 ),
+						new THREE.Vector4( 0, - 100, - 200, 1 ),
+						new THREE.Vector4( 0, 100, - 200, 1 ),
+						new THREE.Vector4( 0, 200, - 200, 1 )
+					],
+					[
+						new THREE.Vector4( 0, - 200, 0, 1 ),
+						new THREE.Vector4( 0, - 100, 0, 1 ),
+						new THREE.Vector4( 0, 100, 0, 1 ),
+						new THREE.Vector4( 0, 200, 0, 1 )
+					],
+					[
+						new THREE.Vector4( 0, - 200, 200, 1 ),
+						new THREE.Vector4( 0, - 100, 200, 1 ),
+						new THREE.Vector4( 0, 100, 200, 1 ),
+						new THREE.Vector4( 0, 200, 200, 1 )
+					]
+				];
+
+
+				perturbatedControlPoints = [
+					[
+						new THREE.Vector4( (Math.random()-0.5)*wavefrontAmplitude, - 200, - 200, 1 ),
+						new THREE.Vector4( (Math.random()-0.5)*wavefrontAmplitude, - 100, - 200, 1 ),
+						new THREE.Vector4( (Math.random()-0.5)*wavefrontAmplitude, 100, - 200, 1 ),
+						new THREE.Vector4( (Math.random()-0.5)*wavefrontAmplitude, 200, - 200, 1 )
+					],
+					[
+						new THREE.Vector4( (Math.random()-0.5)*wavefrontAmplitude, - 200, 0, 1 ),
+						new THREE.Vector4( (Math.random()-0.5)*wavefrontAmplitude, - 100, 0, 1 ),
+						new THREE.Vector4( (Math.random()-0.5)*wavefrontAmplitude, 100, 0, 1 ),
+						new THREE.Vector4( (Math.random()-0.5)*wavefrontAmplitude, 200, 0, 1 )
+					],
+					[
+						new THREE.Vector4( (Math.random()-0.5)*wavefrontAmplitude, - 200, 200, 1 ),
+						new THREE.Vector4( (Math.random()-0.5)*wavefrontAmplitude, - 100, 200, 1 ),
+						new THREE.Vector4( (Math.random()-0.5)*wavefrontAmplitude, 100, 200, 1 ),
+						new THREE.Vector4( (Math.random()-0.5)*wavefrontAmplitude, 200, 200, 1 )
+					]
+				];
+
+				nsControlPoints = stableControlPoints;
+
+				var degree1 = 2;
+				var degree2 = 3;
+				var knots1 = [ 0, 0, 0, 1, 1, 1 ];
+				var knots2 = [ 0, 0, 0, 0, 1, 1, 1, 1 ];
+				nurbsSurface = new THREE.NURBSSurface( degree1, degree2, knots1, knots2, nsControlPoints );
+
+				var map = new THREE.TextureLoader().load( 'textures/UV_Grid_Sm.jpg' );
+				map.wrapS = map.wrapT = THREE.RepeatWrapping;
+				map.anisotropy = 16;
+
+				var geometry = new THREE.ParametricBufferGeometry( getSurfacePoint, 20, 20 );
+				var material = new THREE.MeshLambertMaterial( { map: map, side: THREE.DoubleSide } );
+				wavefront = new THREE.Mesh( geometry, material );
+				wavefront.position.set( -500, 100, 0 );
+				wavefront.scale.multiplyScalar( 1 );
+				group.add( wavefront );
+
+			 	var mirrorControlPoints = Array();
+
+				for(var i=0;i<perturbatedControlPoints.length;i++) {
+					// mirrorControlPoints.push(Array(4));
+					// var mirrorControlPoint = Array();
+					// mirrorControlPoints.push(Array());
+					var mirrorControlPoint = Array();
+					for(var j=0;j<4;j++) {
+						mirrorControlPoint.push(perturbatedControlPoints[i][j].clone());
+						mirrorControlPoint[j].x = 0.5*mirrorControlPoint[j].x;
+						// mirrorControlPoints
+						// mirrorControlPoints[i].push(perturbatedControlPoints[i][j]);
+						// mirrorControlPoints[i][j] = Array.from(Object.create(perturbatedControlPoints[i][j]));
+						// mirrorControlPoints[i][j].copy(perturbatedControlPoints[i][j]);
+						// mirrorControlPoints[i][j].x = -10*mirrorControlPoints[i][j].x;
+					}
+					mirrorControlPoints.push(mirrorControlPoint);
+				}
+
+				var mirrorNurbsSurface = new THREE.NURBSSurface( degree1, degree2, knots1, knots2, mirrorControlPoints );
+
+				var mirrorMap = new THREE.TextureLoader().load( 'textures/UV_Grid_Sm.jpg' );
+				mirrorMap.wrapS = mirrorMap.wrapT = THREE.RepeatWrapping;
+				mirrorMap.anisotropy = 16;
+
+				function getMirrorSurfacePoint( u, v, target ) {
+					return mirrorNurbsSurface.getPoint( u, v, target );
+				}
+
+				var mirrorGeometry = new THREE.ParametricBufferGeometry( getMirrorSurfacePoint, 20, 20 );
+				var mirrorMaterial = new THREE.MeshLambertMaterial( { map: mirrorMap, side: THREE.DoubleSide } );
+				mirror = new THREE.Mesh( mirrorGeometry, mirrorMaterial );
+				mirror.position.set( 500, 100, 0 );
+				mirror.scale.multiplyScalar( 1 );
+				group.add( mirror );
+
+				//
+
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				container.appendChild( renderer.domElement );
+
+				stats = new Stats();
+				container.appendChild( stats.dom );
+
+				document.addEventListener( 'mousedown', onDocumentMouseDown, false );
+				document.addEventListener( 'touchstart', onDocumentTouchStart, false );
+				document.addEventListener( 'touchmove', onDocumentTouchMove, false );
+
+				//
+
+				window.addEventListener( 'resize', onWindowResize, false );
+
+
+				var loader = new THREE.STLLoader();
+				var material = new THREE.MeshPhongMaterial( { color: 0xAAAAAA, specular: 0x111111, shininess: 200 } );
+
+
+				loader.load( './models/stl/binary/DM69-15-005.stl', function ( geometry ) {
+
+				var meshMaterial = material;
+				if ( geometry.hasColors ) {
+
+					// meshMaterial = new THREE.MeshPhongMaterial( { opacity: geometry.alpha, vertexColors: THREE.VertexColors } );
+					meshMaterial = new THREE.MeshPhongMaterial( { opacity: 1, vertexColors: THREE.VertexColors } );
+
+				}
+
+				var mesh = new THREE.Mesh( geometry, meshMaterial );
+
+				mesh.position.set( 0.5, 0.2, 0 );
+				mesh.position.set( 0, -0.5, 0 );
+				// mesh.rotation.set( - Math.PI / 2, Math.PI / 2, 0 );
+				// mesh.scale.set( 0.01, 0.01, 0.01);
+				// mesh.scale.set( 1e-3, 1e-3, 1e-3 );
+
+				mesh.castShadow = true;
+				mesh.receiveShadow = true;
+
+				scene.add( mesh );
+
+			} );
+
+			}
+
+			function getSurfacePoint( u, v, target ) {
+				return nurbsSurface.getPoint( u, v, target );
+			}
+
+			function onWindowResize() {
+
+				windowHalfX = window.innerWidth / 2;
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+			}
+
+			//
+
+			function onDocumentMouseDown( event ) {
+
+				event.preventDefault();
+
+				document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+				document.addEventListener( 'mouseup', onDocumentMouseUp, false );
+				document.addEventListener( 'mouseout', onDocumentMouseOut, false );
+
+				mouseXOnMouseDown = event.clientX - windowHalfX;
+				targetRotationOnMouseDown = targetRotation;
+
+			}
+
+			function onDocumentMouseMove( event ) {
+
+				mouseX = event.clientX - windowHalfX;
+
+				targetRotation = targetRotationOnMouseDown + ( mouseX - mouseXOnMouseDown ) * 0.02;
+
+			}
+
+			function onDocumentMouseUp() {
+
+				document.removeEventListener( 'mousemove', onDocumentMouseMove, false );
+				document.removeEventListener( 'mouseup', onDocumentMouseUp, false );
+				document.removeEventListener( 'mouseout', onDocumentMouseOut, false );
+
+			}
+
+			function onDocumentMouseOut() {
+
+				document.removeEventListener( 'mousemove', onDocumentMouseMove, false );
+				document.removeEventListener( 'mouseup', onDocumentMouseUp, false );
+				document.removeEventListener( 'mouseout', onDocumentMouseOut, false );
+
+			}
+
+			function onDocumentTouchStart( event ) {
+
+				if ( event.touches.length == 1 ) {
+
+					event.preventDefault();
+
+					mouseXOnMouseDown = event.touches[ 0 ].pageX - windowHalfX;
+					targetRotationOnMouseDown = targetRotation;
+
+				}
+
+			}
+
+			function onDocumentTouchMove( event ) {
+
+				if ( event.touches.length == 1 ) {
+
+					event.preventDefault();
+
+					mouseX = event.touches[ 0 ].pageX - windowHalfX;
+					targetRotation = targetRotationOnMouseDown + ( mouseX - mouseXOnMouseDown ) * 0.05;
+
+				}
+
+			}
+
+			//
+
+			function animate() {
+
+				requestAnimationFrame( animate );
+
+				var time = Date.now();
+				var deltaTime = (time - lastTime) / 1000;
+				lastTime = time;
+
+				if((time-start) > perturbationStartMs && (time-start) < perturbationStartMs + perturbationTimeMs) {
+					var z = Math.sin( (time-start) / 1000 * 10.0 ) * 200;
+					var controlPoints = nurbsSurface.controlPoints;
+
+					for(var i=0;i<controlPoints.length;i++) {
+						for(var j=0;j<4;j++) {
+							controlPoints[i][j].x = stableControlPoints[i][j].x*(perturbationTimeMs - (time-start-perturbationStartMs));
+							controlPoints[i][j].x += perturbatedControlPoints[i][j].x*(time-start-perturbationStartMs);
+							controlPoints[i][j].x /= perturbationTimeMs;
+						}
+					}
+
+					nurbsSurface.controlPoints = controlPoints;
+					wavefront.geometry = new THREE.ParametricBufferGeometry( getSurfacePoint, 20, 20 );
+				}
+
+				if(wavefront.position.x > mirror.position.x) {
+					mirrored = true;
+				}
+
+				if(mirrored) {
+					wavefront.position.x -= deltaTime * lightSpeed;
+				} else {
+					wavefront.position.x += deltaTime * lightSpeed;
+				}
+
+				render();
+				stats.update();
+
+			}
+
+			function render() {
+
+				group.rotation.y += ( targetRotation - group.rotation.y ) * 0.05;
+				renderer.render( scene, camera );
+
+			}
+
+		</script>
+
+	</body>
+</html>
