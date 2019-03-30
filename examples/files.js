@@ -1,5 +1,6 @@
 var files = {
 	"webgl": [
+		"webgl_adaptive_optics",
 		"webgl_animation_cloth",
 		"webgl_animation_keyframes",
 		"webgl_animation_skinning_blending",
