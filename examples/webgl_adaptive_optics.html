@@ -31,10 +31,13 @@
 
 		<script src="../build/three.js"></script>
 		<script src="js/controls/OrbitControls.js"></script>
-		<script src="js/shaders/WaterRefractionShader.js"></script>
+		<!-- <script src="js/shaders/WaterRefractionShader.js"></script> -->
+		<script src="js/shaders/WaterRefractionExShader.js"></script>
 		<script src="js/objects/Refractor.js"></script>
 		<script src="js/objects/Reflector.js"></script>
 		<script src="js/WebGL.js"></script>
+
+		<script src="js/objects/Water.js"></script>
 
 		<script src='js/libs/dat.gui.min.js'></script>
 
@@ -55,11 +58,17 @@
 		}
 
 		var scene, camera, clock, renderer, refractor, controls, mirror,
-			mesh, gridHelper;
+			mesh, gridHelper, cubeCamera1, mirrorMaterial;
+
+		var mirrorRefractor;
+		var mirrorCamera;
+		var mirrorCameraBackground = new THREE.Color( 0.7, 0.5, 0.5 );
 
 		var options = {
 			perturbationOn: true,
-			perturbationSpeed : 10,
+			correctionOn: false,
+			waveStrength: 0.1,
+			waveSpeed: 0.03,
 
 			MoveCamera : function () {
 				// camera.rotateX(Math.PI / 2);
@@ -85,8 +94,13 @@
 
 			camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 1000 );
 			camera.position.set( - 10, 0, 35 );
-			camera.position.set( -20, 0, -30 );
+			camera.position.set( 0, 0, -30 );
+			// camera.position.set( -10, 0, 0 );
 			camera.lookAt( scene.position );
+
+			// mirrorCamera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 1000 );
+			// mirrorCamera.position.set( -20, 0, -30 );
+			// mirrorCamera.up = camera.up;
 
 			// clock
 
@@ -98,7 +112,8 @@
 			var material = new THREE.MeshStandardMaterial( { color: 0x6083c2 } );
 
 			mesh = new THREE.Mesh( geometry, material );
-			mesh.position.set( 0, 0, 0 );
+			mesh.position.set( 0, 0, -100 );
+			mesh.scale.set(4, 4, 4);
 			scene.add( mesh );
 
 			// grid
@@ -110,37 +125,43 @@
 
 			// refractor
 
-			var refractorGeometry = new THREE.PlaneBufferGeometry( 10, 10 );
+			// var refractorGeometry = new THREE.PlaneGeometry( 100, 100 );
+			var refractorGeometry = new THREE.CircleBufferGeometry( 100, 50 );
 
 			refractor = new THREE.Refractor( refractorGeometry, {
-				color: 0x999999,
-				textureWidth: 1024,
-				textureHeight: 1024,
-				shader: THREE.WaterRefractionShader
+				// color: 0x999999,
+				// color: 0x888888,
+				textureWidth: 2048,
+				textureHeight: 2048,
+				shader: THREE.WaterRefractionExShader
 			} );
 
-			refractor.position.set( 0, 0, 5 );
+			refractor.position.set( 0, 0, -50 );
 			scene.add( refractor );
 
 			addBorders(refractor);
 
 			reverseRefractor = refractor.clone();
 			reverseRefractor.rotateX( - 2 * Math.PI / 2 );
-			scene.add( reverseRefractor );
+			// scene.add( reverseRefractor );
 
 			// load dudv map for distortion effect
 
-			var dudvMap = new THREE.TextureLoader().load( 'textures/water.jpg', function () {
-
+			var dudvMap = new THREE.TextureLoader().load( 'textures/water_256.jpg', function () {
 				animate();
-
 			} );
 
 			dudvMap.wrapS = dudvMap.wrapT = THREE.RepeatWrapping;
 			refractor.material.uniforms[ "tDudv" ].value = dudvMap;
+			refractor.material.uniforms[ "waveStrength" ].value = 0.1;
+			refractor.material.uniforms[ "waveSpeed" ].value = 0.03;
+
+			setVisible(refractor, options.perturbationOn);
+			// setVisible(reverseRefractor, options.perturbationOn);
 
 			// Mirror
 			var mirrorGeometry = new THREE.CircleBufferGeometry( 10, 50 );
+			// var mirrorGeometry = new THREE.PlaneBufferGeometry( 10, 10, 10, 10 );
 
 			mirror = new THREE.Reflector( mirrorGeometry, {
 				clipBias: 0.003,
@@ -149,11 +170,37 @@
 				color: 0x777777,
 				recursion: 1
 			} );
+
 			mirror.position.set( 0, 0, 10 );
+			// mirror.geometry.rotateX( - Math.PI / 2 );
 			mirror.rotateX( - 2 * Math.PI / 2 );
+			mirror.geometry.center();
 			scene.add( mirror );
 
-			addBorders(mirror);
+			// addBorders(mirror);
+
+			// geometry = new THREE.CircleBufferGeometry( 10, 50 );
+			mirrorRefractor = new THREE.Refractor( mirror.geometry.clone(), {
+			// mirrorRefractor = new THREE.Refractor( geometry, {
+				// color: 0x999999,
+				// color: 0x000000,
+				textureWidth: 2048,
+				textureHeight: 2048,
+				shader: THREE.WaterRefractionExShader
+			} );
+
+			mirrorRefractor.material.uniforms[ "tDudv" ].value = dudvMap;
+			mirrorRefractor.material.uniforms[ "waveStrength" ].value = 0.1;
+			mirrorRefractor.material.uniforms[ "waveSpeed" ].value = 0.03;
+
+			scene.add( mirrorRefractor );
+			// mirrorRefractor.rotateX( + 2 * Math.PI / 2 );
+			mirrorRefractor.position.set( 0, 0, 7.5 );
+			scene.add( mirrorRefractor );
+
+			addBorders(mirrorRefractor, 10);
+
+			setVisible(mirrorRefractor, options.correctionOn);
 
 			// light
 
@@ -164,12 +211,16 @@
 			camera.add( pointLight );
 			scene.add( camera );
 
+			// mirrorCamera.lookAt( mirror.position );
+			// scene.add( mirrorCamera );
+
 			// renderer
 
 			renderer = new THREE.WebGLRenderer( { antialias: true } );
 			renderer.setSize( window.innerWidth, window.innerHeight );
 			renderer.setClearColor( 0x20252f );
 			renderer.setPixelRatio( window.devicePixelRatio );
+
 			document.body.appendChild( renderer.domElement );
 
 			//
@@ -179,9 +230,17 @@
 			var gui = new dat.GUI();
 			var generalGui = gui.addFolder('General');
 
-			generalGui.add(options, 'perturbationSpeed', 0, 100).step(1).listen();
 			generalGui.add(options, 'perturbationOn').onChange(function(on) {
 				setVisible(refractor, on);
+			}).listen();
+			generalGui.add(options, 'waveStrength', 0, 1).step(0.1).onChange(function(value) {
+				refractor.material.uniforms[ "waveStrength" ].value = value;
+			}).listen();
+			generalGui.add(options, 'waveSpeed', 0.01, 0.1).step(0.01).onChange(function(value) {
+				refractor.material.uniforms[ "waveSpeed" ].value = value;
+			}).listen();
+			generalGui.add(options, 'correctionOn').onChange(function(on) {
+				setVisible(mirrorRefractor, on);
 			}).listen();
 
 			generalGui.add(options, 'MoveCamera').listen();
@@ -209,8 +268,8 @@
 			setVisible(object, false);
 		}
 
-		function addBorders(object) {
-			var edges = new THREE.EdgesGeometry( object.geometry, 45 );
+		function addBorders(object, angle = 45) {
+			var edges = new THREE.EdgesGeometry( object.geometry, angle );
 			var line = new THREE.LineSegments( edges, new THREE.LineBasicMaterial( { color: 0x000000 } ) );
 			line.position.set(object.position.x, object.position.y, object.position.z);
 			scene.add( line );
@@ -234,9 +293,33 @@
 
 		function render() {
 
-			refractor.material.uniforms[ "time" ].value += options.perturbationSpeed*clock.getDelta();
+			var deltaClock = clock.getDelta();
 
+			refractor.material.uniforms[ "time" ].value += 10*deltaClock;
+			mirrorRefractor.material.uniforms[ "time" ].value += 10*deltaClock;
+
+			// animateMirror(clock.getElapsedTime()*1000);
+
+			// renderer.clear();
+			renderer.setViewport( 0, 0, window.innerWidth, window.innerHeight );
 			renderer.render( scene, camera );
+
+			// renderer.clearDepth();
+			//
+			// var left = Math.floor( window.innerWidth * 0.1 );
+			// var bottom = Math.floor( window.innerHeight * 0.1 );
+			// var width = Math.floor( window.innerWidth * 0.2 );
+			// var height = Math.floor( window.innerHeight * 0.2 );
+			//
+			// renderer.setViewport( left, bottom, width, height );
+			// renderer.setViewport( 0, 0, 10, 10 );
+			// renderer.setScissor( left, bottom, width, height );
+			// renderer.setScissorTest( true );
+			// renderer.setClearColor( mirrorCameraBackground );
+			// mirrorCamera.aspect = width / height;
+			// mirrorCamera.updateProjectionMatrix();
+
+			// renderer.render( scene, mirrorCamera );
 
 		}
 
