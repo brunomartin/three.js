@@ -100,6 +100,7 @@
 			waveAmp: 8.0,
 			waveLength: 7.0,
 			waveSpeed: 0.03,
+			renderLabels: false,
 
 			MoveCamera0 : function () {
 				var object = mirror;
@@ -471,6 +472,14 @@
 			var gui = new dat.GUI();
 			var generalGui = gui.addFolder('General');
 
+			generalGui.add(options, 'renderLabels').onChange(function(on) {
+				if(on) {
+					labelRenderer.domElement.style.zIndex = "0";
+				} else {
+					labelRenderer.domElement.style.zIndex = "-1";
+				}
+				render();
+			}).listen();
 			generalGui.add(options, 'perturbationOn').onChange(function(on) {
 				setVisible(refractor, on);
 				setVisible(secondRefractor, on);
@@ -608,7 +617,9 @@
 			// renderer.setViewport( 0, 0, window.innerWidth, window.innerHeight );
 			renderer.render( scene, camera );
 
-			labelRenderer.render( scene, camera );
+			if(options.renderLabels) {
+				labelRenderer.render( scene, camera );
+			}
 
 		}
 
