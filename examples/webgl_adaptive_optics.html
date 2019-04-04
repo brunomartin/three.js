@@ -36,6 +36,10 @@
 				background: rgb(179,35,45, 1);
 			}
 
+			.dg.ac {
+				z-index: 1000 !important;
+			}
+
 			a {
 				color: #ffffff;
 			}
@@ -473,7 +477,10 @@
 			labelRenderer.setSize( window.innerWidth, window.innerHeight );
 			labelRenderer.domElement.style.position = 'absolute';
 			labelRenderer.domElement.style.top = 0;
-			document.body.appendChild( labelRenderer.domElement );
+
+			if(options.renderLabels) {
+				document.body.appendChild( labelRenderer.domElement );
+			}
 
 			// gui
 
@@ -490,9 +497,9 @@
 			}).listen();
 			generalGui.add(options, 'renderLabels').onChange(function(on) {
 				if(on) {
-					labelRenderer.domElement.style.zIndex = "0";
+					document.body.appendChild( labelRenderer.domElement );
 				} else {
-					labelRenderer.domElement.style.zIndex = "-1";
+					document.body.removeChild( labelRenderer.domElement );
 				}
 				render();
 			}).listen();
@@ -519,6 +526,7 @@
 			generalGui.add(options, 'MoveCamera3').listen();
 
 			generalGui.open();
+			gui.domElement.style.zIndex = "1";
 
 			//
 
