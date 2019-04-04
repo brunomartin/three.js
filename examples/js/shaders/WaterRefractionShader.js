@@ -77,14 +77,14 @@ THREE.WaterRefractionShader = {
 
 		'void main() {',
 
-		' float waveStrength = 0.1;',
+		' float waveAmp = 0.1;',
 		' float waveSpeed = 0.03;',
 
 		// simple distortion (ripple) via dudv map (see https://www.youtube.com/watch?v=6B7IF6GOu7s)
 
-		'	vec2 distortedUv = texture2D( tDudv, vec2( vUv.x + time * waveSpeed, vUv.y ) ).rg * waveStrength;',
+		'	vec2 distortedUv = texture2D( tDudv, vec2( vUv.x + time * waveSpeed, vUv.y ) ).rg * waveAmp;',
 		'	distortedUv = vUv.xy + vec2( distortedUv.x, distortedUv.y + time * waveSpeed );',
-		'	vec2 distortion = ( texture2D( tDudv, distortedUv ).rg * 2.0 - 1.0 ) * waveStrength;',
+		'	vec2 distortion = ( texture2D( tDudv, distortedUv ).rg * 2.0 - 1.0 ) * waveAmp;',
 
 		// new uv coords
 

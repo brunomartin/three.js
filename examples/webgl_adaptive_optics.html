@@ -33,6 +33,7 @@
 		<script src="js/controls/OrbitControls.js"></script>
 		<!-- <script src="js/shaders/WaterRefractionShader.js"></script> -->
 		<script src="js/shaders/WaterRefractionExShader.js"></script>
+		<script src="js/shaders/HeatRefractionExShader.js"></script>
 		<script src="js/objects/Refractor.js"></script>
 		<script src="js/objects/Reflector.js"></script>
 		<script src="js/WebGL.js"></script>
@@ -60,6 +61,7 @@
 			mesh, gridHelper, cubeCamera1, mirrorMaterial;
 
 		var lastCameraPosition;
+		var secondRefractor;
 
 		var mirrorRefractor;
 		var mirrorCamera;
@@ -68,7 +70,8 @@
 		var options = {
 			perturbationOn: true,
 			correctionOn: false,
-			waveStrength: 0.2,
+			waveAmp: 8.0,
+			waveLength: 7.0,
 			waveSpeed: 0.03,
 
 			MoveCamera0 : function () {
@@ -96,6 +99,7 @@
 
 
 		init();
+		animate();
 
 		function init() {
 
@@ -140,14 +144,14 @@
 			// refractor
 
 			// var refractorGeometry = new THREE.PlaneGeometry( 100, 100 );
-			var refractorGeometry = new THREE.CircleBufferGeometry( 100, 50 );
+			var refractorGeometry = new THREE.CircleBufferGeometry( 40, 50 );
 
 			refractor = new THREE.Refractor( refractorGeometry, {
 				// color: 0x999999,
 				// color: 0x888888,
-				textureWidth: 2048,
-				textureHeight: 2048,
-				shader: THREE.WaterRefractionExShader
+				textureWidth: 4096,
+				textureHeight: 4096,
+				shader: THREE.HeatRefractionExShader
 			} );
 
 			refractor.position.set( 0, 0, -50 );
@@ -155,23 +159,43 @@
 
 			addBorders(refractor);
 
-			reverseRefractor = refractor.clone();
-			reverseRefractor.rotateX( - 2 * Math.PI / 2 );
-			// scene.add( reverseRefractor );
-
 			// load dudv map for distortion effect
 
-			var dudvMap = new THREE.TextureLoader().load( 'textures/water_256.jpg', function () {
-				animate();
-			} );
+			var texture_file = 'textures/water_256.jpg';
+			texture_file = 'textures/wave_512.jpg';
 
-			dudvMap.wrapS = dudvMap.wrapT = THREE.RepeatWrapping;
-			refractor.material.uniforms[ "tDudv" ].value = dudvMap;
-			refractor.material.uniforms[ "waveStrength" ].value = 0.1;
-			refractor.material.uniforms[ "waveSpeed" ].value = 0.03;
+			// animate();
+
+			// var dudvMap = new THREE.TextureLoader().load( texture_file, function () {
+			// 	animate();
+			// } );
+
+			// dudvMap.wrapS = dudvMap.wrapT = THREE.RepeatWrapping;
+			refractor.material.uniforms[ "waveAmp" ].value = options.waveAmp;
+			refractor.material.uniforms[ "waveLength" ].value = options.waveLength;
+			refractor.material.uniforms[ "waveSpeed" ].value = options.waveSpeed;
 
 			setVisible(refractor, options.perturbationOn);
 			// setVisible(reverseRefractor, options.perturbationOn);
+
+
+			secondRefractor = new THREE.Refractor( refractorGeometry.clone(), {
+				// color: 0x999999,
+				// color: 0x888888,
+				textureWidth: 4096,
+				textureHeight: 4096,
+				shader: THREE.HeatRefractionExShader
+			} );
+
+			// secondRefractor.material.uniforms[ "tDudv" ].value = dudvMap;
+			secondRefractor.material.uniforms[ "waveAmp" ].value = options.waveAmp;
+			secondRefractor.material.uniforms[ "waveLength" ].value = options.waveLength;
+			secondRefractor.material.uniforms[ "waveSpeed" ].value = options.waveSpeed;
+
+			secondRefractor.rotateZ( - Math.PI / 2 );
+			secondRefractor.position.set( 0, 0, -49.9 );
+			scene.add( secondRefractor );
+
 
 			// Mirror
 			var mirrorGeometry = new THREE.CircleBufferGeometry( 10, 50 );
@@ -201,11 +225,12 @@
 				// color: 0x000000,
 				textureWidth: 2048,
 				textureHeight: 2048,
-				shader: THREE.WaterRefractionExShader
+				shader: THREE.HeatRefractionExShader
 			} );
 
-			mirrorRefractor.material.uniforms[ "tDudv" ].value = dudvMap;
-			mirrorRefractor.material.uniforms[ "waveStrength" ].value = 0.1;
+			// mirrorRefractor.material.uniforms[ "tDudv" ].value = dudvMap;
+			mirrorRefractor.material.uniforms[ "waveAmp" ].value = 0.1;
+			mirrorRefractor.material.uniforms[ "waveLength" ].value = 0.1;
 			mirrorRefractor.material.uniforms[ "waveSpeed" ].value = 0.03;
 
 			scene.add( mirrorRefractor );
@@ -247,11 +272,15 @@
 
 			generalGui.add(options, 'perturbationOn').onChange(function(on) {
 				setVisible(refractor, on);
+				setVisible(secondRefractor, on);
 			}).listen();
-			generalGui.add(options, 'waveStrength', 0, 1).step(0.1).onChange(function(value) {
-				refractor.material.uniforms[ "waveStrength" ].value = value;
+			generalGui.add(options, 'waveAmp', 0, 10).step(0.1).onChange(function(value) {
+				refractor.material.uniforms[ "waveAmp" ].value = value;
 			}).listen();
-			generalGui.add(options, 'waveSpeed', 0.01, 0.1).step(0.01).onChange(function(value) {
+			generalGui.add(options, 'waveLength', 0.5, 10).step(0.1).onChange(function(value) {
+				refractor.material.uniforms[ "waveLength" ].value = value;
+			}).listen();
+			generalGui.add(options, 'waveSpeed', 0.01, 0.5).step(0.01).onChange(function(value) {
 				refractor.material.uniforms[ "waveSpeed" ].value = value;
 			}).listen();
 			generalGui.add(options, 'correctionOn').onChange(function(on) {
@@ -270,7 +299,6 @@
 			options.MoveCamera0();
 
 			lastCameraPosition = camera.position.clone();
-
 		}
 
 		function setVisible(object, visible) {
@@ -305,8 +333,11 @@
 		}
 
 		function animate() {
+				setTimeout( function() {
 
-			requestAnimationFrame( animate );
+	        requestAnimationFrame( animate );
+
+	    }, 1000 / 30 );
 
 			render();
 
@@ -317,6 +348,7 @@
 			var deltaClock = clock.getDelta();
 
 			refractor.material.uniforms[ "time" ].value += 10*deltaClock;
+			secondRefractor.material.uniforms[ "time" ].value += 10*deltaClock;
 			mirrorRefractor.material.uniforms[ "time" ].value += 10*deltaClock;
 
 			// animateMirror(clock.getElapsedTime()*1000);
