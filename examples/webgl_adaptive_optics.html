@@ -24,6 +24,13 @@
 				text-align:left;
 			}
 
+			.label{
+				color: #FFF;
+				font-family: sans-serif;
+				padding: 2px;
+				background: rgba( 0, 0, 0, .6 );
+			}
+
 			a {
 				color: #ffffff;
 			}
@@ -39,6 +46,8 @@
 		<script src="js/WebGL.js"></script>
 
 		<script src="js/objects/Water.js"></script>
+
+		<script src="js/renderers/CSS2DRenderer.js"></script>
 
 		<script src='js/libs/dat.gui.min.js'></script>
 
@@ -60,6 +69,8 @@
 		var scene, camera, clock, renderer, refractor, controls, mirror,
 			mesh, gridHelper, cubeCamera1, mirrorMaterial;
 
+		var labelRenderer;
+
 		var lastCameraPosition;
 		var secondRefractor;
 
@@ -68,7 +79,7 @@
 		var mirrorCameraBackground = new THREE.Color( 0.7, 0.5, 0.5 );
 
 		var options = {
-			perturbationOn: true,
+			perturbationOn: false,
 			correctionOn: false,
 			waveAmp: 8.0,
 			waveLength: 7.0,
@@ -197,6 +208,8 @@
 			scene.add( secondRefractor );
 
 
+			setVisible(secondRefractor, options.perturbationOn);
+
 			// Mirror
 			var mirrorGeometry = new THREE.CircleBufferGeometry( 10, 50 );
 			// var mirrorGeometry = new THREE.PlaneBufferGeometry( 10, 10, 10, 10 );
@@ -254,6 +267,23 @@
 			// mirrorCamera.lookAt( mirror.position );
 			// scene.add( mirrorCamera );
 
+			// Labels
+
+			var div, label;
+
+			var div = document.createElement( 'div' );
+			div.className = 'label';
+			div.textContent = 'Object';
+			div.style.marginTop = '-1em';
+			var label = new THREE.CSS2DObject( div );
+			label.position.set( 0, 0, 0 );
+			// label.position = mesh.position.clone();
+			mesh.add( label );
+
+			// control
+
+			controls = new THREE.OrbitControls( camera );
+
 			// renderer
 
 			renderer = new THREE.WebGLRenderer( { antialias: true } );
@@ -263,9 +293,14 @@
 
 			document.body.appendChild( renderer.domElement );
 
-			//
 
-			controls = new THREE.OrbitControls( camera, renderer.domElement );
+			labelRenderer = new THREE.CSS2DRenderer();
+			labelRenderer.setSize( window.innerWidth, window.innerHeight );
+			labelRenderer.domElement.style.position = 'absolute';
+			labelRenderer.domElement.style.top = 0;
+			document.body.appendChild( labelRenderer.domElement );
+
+			// gui
 
 			var gui = new dat.GUI();
 			var generalGui = gui.addFolder('General');
@@ -354,8 +389,6 @@
 			// animateMirror(clock.getElapsedTime()*1000);
 
 			// renderer.clear();
-			renderer.setViewport( 0, 0, window.innerWidth, window.innerHeight );
-			renderer.render( scene, camera );
 
 			// info.innerHTML = clock.elapsedTime;
 
@@ -401,6 +434,11 @@
 			// mirrorCamera.updateProjectionMatrix();
 
 			// renderer.render( scene, mirrorCamera );
+
+			// renderer.setViewport( 0, 0, window.innerWidth, window.innerHeight );
+			renderer.render( scene, camera );
+
+			labelRenderer.render( scene, camera );
 
 		}
 
