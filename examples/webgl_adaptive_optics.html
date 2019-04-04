@@ -101,6 +101,7 @@
 			waveLength: 7.0,
 			waveSpeed: 0.03,
 			renderLabels: false,
+			displayInfo: false,
 
 			MoveCamera0 : function () {
 				var object = mirror;
@@ -151,6 +152,13 @@
 		animate();
 
 		function init() {
+
+
+			if(options.displayInfo) {
+				document.getElementById('info').style.display = 'block';
+			} else {
+				document.getElementById('info').style.display = 'none';
+			}
 
 			// scene
 
@@ -472,6 +480,14 @@
 			var gui = new dat.GUI();
 			var generalGui = gui.addFolder('General');
 
+			generalGui.add(options, 'displayInfo').onChange(function(on) {
+				if(on) {
+					document.getElementById('info').style.display = 'block';
+				} else {
+					document.getElementById('info').style.display = 'none';
+				}
+				render();
+			}).listen();
 			generalGui.add(options, 'renderLabels').onChange(function(on) {
 				if(on) {
 					labelRenderer.domElement.style.zIndex = "0";
@@ -572,8 +588,6 @@
 			// info.innerHTML = clock.elapsedTime;
 
 			var info = document.getElementById('info');
-
-			// info.innerHTML = "proot";
 
 			if(lastCameraPosition.distanceTo( camera.position ) > 0.1) {
 
