@@ -22,13 +22,18 @@
 				font-family:Monospace;
 				font-size:13px;
 				text-align:left;
+				z-index: 1000;
 			}
 
 			.label{
 				color: #FFF;
+				/* color: #0d3681;
+				color: rgb(13,54,129); */
 				font-family: sans-serif;
 				padding: 2px;
 				background: rgba( 0, 0, 0, .6 );
+				background: rgb(179,35,45, .6);
+				background: rgb(179,35,45, 1);
 			}
 
 			a {
@@ -67,7 +72,7 @@
 		}
 
 		var scene, camera, clock, renderer, refractor, controls, mirror,
-			mesh, gridHelper, cubeCamera1, mirrorMaterial;
+			object, gridHelper, cubeCamera1, mirrorMaterial;
 
 		var labelRenderer;
 
@@ -77,6 +82,17 @@
 		var mirrorRefractor;
 		var mirrorCamera;
 		var mirrorCameraBackground = new THREE.Color( 0.7, 0.5, 0.5 );
+
+		var waveFrontSensor;
+		var beamSplitter;
+
+		var mirrorAngle = 10 / 180 * Math.PI;
+		mirrorAngle = 3 * Math.PI / 8;
+		mirrorAngle = Math.PI / 4;
+		mirrorAngle = Math.PI / 8;
+		// mirrorAngle = Math.PI / 12;
+		// mirrorAngle = Math.PI / 16;
+		// mirrorAngle = 0;
 
 		var options = {
 			perturbationOn: false,
@@ -89,19 +105,40 @@
 				var object = mirror;
 
 				camera.lookAt( object.position );
-				camera.position.set(15, 1, -38);
-				camera.rotation.set(-3.12, 0.31, 0);
+				camera.position.set(17, 1, -37);
+				camera.rotation.set(-3.12, 0.4, 3.13);
 
 				controls.target = object.position;
 				controls.update();
 			},
 
 			MoveCamera1 : function () {
+				var object = mirror;
+
+				camera.lookAt(object.position);
+				// camera.position.set(5, -134, -54);
+				camera.position = waveFrontSensor.position.clone();
+				// camera.rotation.set(1.58, 0.02, -2.16);
+
+				controls.target = object.position;
+				controls.update();
+			},
+			MoveCamera2 : function () {
+				var object = mirror;
+
+				camera.lookAt(object.position);
+				camera.position.set(5, 134, -54);
+				camera.rotation.set(1.58, 0.02, -2.16);
+
+				controls.target = object.position;
+				controls.update();
+			},
+			MoveCamera3 : function () {
 				var object = refractor;
 
 				camera.lookAt(object.position);
-				camera.position.set(5, -334, -54);
-				camera.rotation.set(1.58, 0.02, -2.16);
+				camera.position.set(7, 102, 4);
+				camera.rotation.set(1.58, 0.02, 1.06);
 
 				controls.target = object.position;
 				controls.update();
@@ -119,6 +156,11 @@
 			scene = new THREE.Scene();
 			scene.background = new THREE.Color( 0xf0f0f0 );
 
+			// helpers
+			//
+			var axesHelper = new THREE.AxesHelper( 30 );
+			// scene.add( axesHelper )
+
 			// camera
 
 			camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 5000 );
@@ -135,15 +177,16 @@
 
 			clock = new THREE.Clock();
 
-			// mesh
+			// object
 
 			var geometry = new THREE.TorusKnotBufferGeometry( 3, 1, 256, 32 );
-			var material = new THREE.MeshStandardMaterial( { color: 0x6083c2 } );
+			// var material = new THREE.MeshStandardMaterial( { color: 0x0D3681 } );
+			var material = new THREE.MeshStandardMaterial( { color: 0xB3232D } );
 
-			mesh = new THREE.Mesh( geometry, material );
-			mesh.position.set( 0, 0, -100 );
-			mesh.scale.set(4, 4, 4);
-			scene.add( mesh );
+			object = new THREE.Mesh( geometry, material );
+			object.position.set( 0, 0, -100 );
+			object.scale.set(4, 4, 4);
+			scene.add( object );
 
 			// grid
 			gridHelper = new THREE.GridHelper( 10, 10, 0x0000ff, 0x808080 );
@@ -165,7 +208,7 @@
 				shader: THREE.HeatRefractionExShader
 			} );
 
-			refractor.position.set( 0, 0, -50 );
+			refractor.position.set( 0, 0, -90 );
 			scene.add( refractor );
 
 			addBorders(refractor);
@@ -188,7 +231,6 @@
 
 			setVisible(refractor, options.perturbationOn);
 			// setVisible(reverseRefractor, options.perturbationOn);
-
 
 			secondRefractor = new THREE.Refractor( refractorGeometry.clone(), {
 				// color: 0x999999,
@@ -222,11 +264,25 @@
 				recursion: 1
 			} );
 
-			mirror.position.set( 0, 0, 10 );
+			mirror.position.set( 0, 0, 0 );
 			// mirror.geometry.rotateX( - Math.PI / 2 );
 			mirror.rotateX( - 2 * Math.PI / 2 );
-			mirror.rotateY( + Math.PI / 2 / 10 );
+			mirror.rotateY( + mirrorAngle );
 			mirror.geometry.center();
+
+			geometry = new THREE.TorusGeometry( 10, 3, 3, 100 );
+			material = new THREE.MeshStandardMaterial( { color: 0x0d3681 } );
+
+			mirror.add(new THREE.Mesh( geometry, material ));
+
+			geometry = new THREE.CylinderGeometry( 13, 13, 10, 32 );
+			geometry.rotateX(  Math.PI / 2 );
+			material = new THREE.MeshStandardMaterial( { color: 0x0d3681 } );
+			var cylinder = new THREE.Mesh( geometry, material );
+			cylinder.translateZ(-5.01);
+			mirror.add(cylinder);
+
+
 			scene.add( mirror );
 
 			// addBorders(mirror);
@@ -248,19 +304,85 @@
 
 			scene.add( mirrorRefractor );
 			// mirrorRefractor.rotateX( + 2 * Math.PI / 2 );
-			mirrorRefractor.position.set( 0, 0, 7.5 );
+			mirrorRefractor.position.set( 0, 0, 0.1 );
 			scene.add( mirrorRefractor );
 
-			addBorders(mirrorRefractor, 10);
+			// addBorders(mirrorRefractor, 10);
 
 			setVisible(mirrorRefractor, options.correctionOn);
 
+			// Wavefront sensor
+
+			var element;
+
+			beamSplitter = new THREE.Group();
+
+			geometry = new THREE.BoxGeometry( 1, 20, 20 );
+			material = new THREE.MeshStandardMaterial( { color: 0x6083c2, transparent: true } );
+			material.opacity = 0.5;
+			material.roughness = 0.0;
+
+			element = new THREE.Mesh( geometry, material );
+
+			beamSplitter.add(element);
+
+			geometry = new THREE.PlaneBufferGeometry( 20, 20 );
+
+			element = new THREE.Reflector( geometry, {
+				clipBias: 0.003,
+				textureWidth: window.innerWidth * window.devicePixelRatio,
+				textureHeight: window.innerHeight * window.devicePixelRatio,
+				color: 0x777777,
+				recursion: 1
+			} );
+
+			// element.position.set(0, -5.5, 0);
+			element.rotateY( Math.PI / 2);
+
+			// addBorders(element, 10);
+
+			// beamSplitter.add(element);
+
+			// beamSplitter.position.set( 30*Math.sin(2*mirrorAngle), 0, -30*Math.cos(2*mirrorAngle) );
+			beamSplitter.position.add( new THREE.Vector3(30*Math.sin(2*mirrorAngle), 0, -30*Math.cos(2*mirrorAngle) ));
+			// beamSplitter.rotateX(- Math.PI / 2);
+			beamSplitter.rotateY(+ 3 * Math.PI / 4 - 2 * mirrorAngle);
+
+			scene.add( beamSplitter );
+
+			waveFrontSensor = new THREE.Group();
+
+			geometry = new THREE.BoxGeometry( 10, 10, 10 );
+			material = new THREE.MeshStandardMaterial( { color: 0x6083c2 } );
+
+			element = new THREE.Mesh( geometry, material );
+
+			waveFrontSensor.add(element);
+
+			geometry = new THREE.CylinderGeometry( 4.5, 4.5, 2, 32 );
+			material = new THREE.MeshStandardMaterial( { color: 0x6083c2 } );
+
+			element = new THREE.Mesh( geometry, material );
+			element.position.set(0, -5.5, 0);
+
+			waveFrontSensor.add(element);
+
+			waveFrontSensor.rotateX(+ Math.PI / 2);
+			waveFrontSensor.position.add(beamSplitter.position.clone());
+			var angle = Math.PI / 2 + 2*mirrorAngle;
+			waveFrontSensor.position.add( new THREE.Vector3(30*Math.sin(angle), 0, -30*Math.cos(angle) ));
+
+			var waveFrontSensorAngle = - Math.PI / 2 + 2 * mirrorAngle;
+			waveFrontSensor.rotateZ( waveFrontSensorAngle);
+
+			scene.add( waveFrontSensor );
+
 			// light
 
-			var ambientLight = new THREE.AmbientLight( 0xcccccc, 0.8 );
+			var ambientLight = new THREE.AmbientLight( 0xffffff, 1.0 );
 			scene.add( ambientLight );
 
-			var pointLight = new THREE.PointLight( 0xffffff, 0.8 );
+			var pointLight = new THREE.PointLight( 0xffffff, 0.5 );
 			camera.add( pointLight );
 			scene.add( camera );
 
@@ -271,14 +393,60 @@
 
 			var div, label;
 
-			var div = document.createElement( 'div' );
+			div = document.createElement( 'div' );
 			div.className = 'label';
-			div.textContent = 'Object';
+			div.textContent = 'Objet';
 			div.style.marginTop = '-1em';
-			var label = new THREE.CSS2DObject( div );
+			label = new THREE.CSS2DObject( div );
 			label.position.set( 0, 0, 0 );
-			// label.position = mesh.position.clone();
-			mesh.add( label );
+			object.add( label );
+
+			div = document.createElement( 'div' );
+			div.className = 'label';
+			div.textContent = 'Miroir';
+			div.style.marginTop = '-1em';
+			label = new THREE.CSS2DObject( div );
+			label.position.set( 0, 0, 0 );
+			mirror.add( label );
+
+			div = document.createElement( 'div' );
+			div.className = 'label';
+			div.textContent = 'Perturbation';
+			div.style.marginTop = '-1em';
+			label = new THREE.CSS2DObject( div );
+			label.position.set( 0, 0, 0 );
+			refractor.add( label );
+
+			div = document.createElement( 'div' );
+			div.className = 'label';
+			div.textContent = 'Lame séparatrice';
+			div.style.marginTop = '-1em';
+			label = new THREE.CSS2DObject( div );
+			label.position.set( 0, 0, 0 );
+			beamSplitter.add( label );
+
+			div = document.createElement( 'div' );
+			div.className = 'label';
+			div.textContent = 'Détecteur de front d\'onde';
+			div.style.marginTop = '-1em';
+			label = new THREE.CSS2DObject( div );
+			label.position.set( 0, 0, 0 );
+			waveFrontSensor.add( label );
+
+			// lines
+
+			material = new THREE.LineBasicMaterial( { color: 0x0000ff } );
+			geometry = new THREE.Geometry();
+
+			geometry.vertices.push(object.position.clone());
+			geometry.vertices.push(refractor.position.clone());
+			geometry.vertices.push(mirror.position.clone());
+			geometry.vertices.push(beamSplitter.position.clone());
+			geometry.vertices.push(waveFrontSensor.position.clone());
+
+			var line = new THREE.Line( geometry, material );
+
+			scene.add( line );
 
 			// control
 
@@ -290,9 +458,7 @@
 			renderer.setSize( window.innerWidth, window.innerHeight );
 			renderer.setClearColor( 0x20252f );
 			renderer.setPixelRatio( window.devicePixelRatio );
-
 			document.body.appendChild( renderer.domElement );
-
 
 			labelRenderer = new THREE.CSS2DRenderer();
 			labelRenderer.setSize( window.innerWidth, window.innerHeight );
@@ -324,6 +490,8 @@
 
 			generalGui.add(options, 'MoveCamera0').listen();
 			generalGui.add(options, 'MoveCamera1').listen();
+			generalGui.add(options, 'MoveCamera2').listen();
+			generalGui.add(options, 'MoveCamera3').listen();
 
 			generalGui.open();
 
@@ -334,6 +502,8 @@
 			options.MoveCamera0();
 
 			lastCameraPosition = camera.position.clone();
+
+			options.MoveCamera2();
 		}
 
 		function setVisible(object, visible) {
@@ -412,7 +582,7 @@
 				info.innerHTML += ", " + Math.round(camera.rotation.y*100)/100;
 				info.innerHTML += ", " + Math.round(camera.rotation.z*100)/100 + ");";
 
-				info.innerHTML += ", " + JSON.stringify(camera.matrix.toArray());
+				// info.innerHTML += ", " + JSON.stringify(camera.matrix.toArray());
 
 				lastCameraPosition = camera.position.clone();
 			}
