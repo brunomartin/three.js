@@ -55,6 +55,7 @@
 		<script src="js/WebGL.js"></script>
 
 		<script src="js/objects/Water.js"></script>
+		<script src="js/objects/Wavefront.js"></script>
 
 		<script src="js/renderers/CSS2DRenderer.js"></script>
 
@@ -90,6 +91,7 @@
 		var mirrorCamera;
 		var mirrorCameraBackground = new THREE.Color( 0.7, 0.5, 0.5 );
 
+		var wavefront;
 		var waveFrontSensor;
 		var beamSplitter;
 
@@ -176,10 +178,17 @@
 			scene = new THREE.Scene();
 			scene.background = new THREE.Color( 0xf0f0f0 );
 
+			// test
+
+			wavefront = new THREE.Wavefront(10, 100);
+			wavefront.position.set(0, 0, -20);
+			wavefront.rotateY(Math.PI/2);
+			scene.add(wavefront);
+
 			// helpers
 			//
 			var axesHelper = new THREE.AxesHelper( 30 );
-			// scene.add( axesHelper )
+			scene.add( axesHelper )
 
 			// camera
 
@@ -634,6 +643,26 @@
 			refractor.material.uniforms[ "time" ].value += 10*deltaClock;
 			secondRefractor.material.uniforms[ "time" ].value += 10*deltaClock;
 			mirrorRefractor.material.uniforms[ "time" ].value += 10*deltaClock;
+
+			if(wavefront.directionChangeCount == 0 && wavefront.position.z > 0) {
+				wavefront.direction = new THREE.Vector3(30*Math.sin(2*mirrorAngle), 0, -30*Math.cos(2*mirrorAngle));
+				wavefront.direction.normalize();
+				wavefront.lookAt(wavefront.direction);
+				wavefront.rotateY(Math.PI/2);
+				wavefront.directionChangeCount++;
+			} else if(wavefront.directionChangeCount == 1 && wavefront.position.z < beamSplitter.position.z) {
+				var angle = Math.PI / 2 + 2*mirrorAngle;
+				wavefront.direction = new THREE.Vector3(30*Math.sin(angle), 0, -30*Math.cos(angle) );
+				wavefront.direction.normalize();
+				wavefront.lookAt(wavefront.direction);
+				wavefront.directionChangeCount++;
+			} else if(wavefront.directionChangeCount == 2 && wavefront.position.z > waveFrontSensor.position.z) {
+				scene.remove( wavefront );
+			}
+
+			wavefront.time += 100*deltaClock;
+			wavefront.updateDeformation();
+			wavefront.updatePosition();
 
 			// animateMirror(clock.getElapsedTime()*1000);
 
