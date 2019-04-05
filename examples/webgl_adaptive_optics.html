@@ -50,6 +50,7 @@
 		<!-- <script src="js/shaders/WaterRefractionShader.js"></script> -->
 		<script src="js/shaders/WaterRefractionExShader.js"></script>
 		<script src="js/shaders/HeatRefractionExShader.js"></script>
+		<script src="js/shaders/DeformableReflectorShader.js"></script>
 		<script src="js/objects/Refractor.js"></script>
 		<script src="js/objects/Reflector.js"></script>
 		<script src="js/WebGL.js"></script>
@@ -57,6 +58,7 @@
 		<script src="js/objects/Water.js"></script>
 		<script src="js/objects/Wavefront.js"></script>
 		<script src="js/objects/WavefrontFactory.js"></script>
+		<script src="js/objects/DeformableMirror.js"></script>
 
 		<script src="js/renderers/CSS2DRenderer.js"></script>
 
@@ -92,8 +94,6 @@
 		var mirrorCamera;
 		var mirrorCameraBackground = new THREE.Color( 0.7, 0.5, 0.5 );
 
-		var wavefront;
-
 		var wavefrontFactory;
 		var wavefronts = [];
 
@@ -124,6 +124,7 @@
 			waveSpeed: 0.2,
 			renderLabels: false,
 			displayInfo: false,
+			generateWavefronts: false,
 
 			MoveCamera0 : function () {
 				var object = mirror;
@@ -198,12 +199,6 @@
 			scene = new THREE.Scene();
 			scene.background = new THREE.Color( 0xf0f0f0 );
 
-			// test
-
-			wavefront = new THREE.Wavefront(10, 100);
-			wavefront.position.set(0, 0, -20);
-			scene.add(wavefront);
-
 			// wavefront factory
 
 			var position = new THREE.Vector3(0, 0, -20);
@@ -266,11 +261,6 @@
 
 			addBorders(refractor);
 
-			// load dudv map for distortion effect
-
-			var texture_file = 'textures/water_256.jpg';
-			texture_file = 'textures/wave_512.jpg';
-
 			// animate();
 
 			// var dudvMap = new THREE.TextureLoader().load( texture_file, function () {
@@ -305,64 +295,13 @@
 
 			setVisible(secondRefractor, options.perturbationOn);
 
-			// Mirror
-			var mirrorGeometry = new THREE.CircleBufferGeometry( 10, 50 );
-			// var mirrorGeometry = new THREE.PlaneBufferGeometry( 10, 10, 10, 10 );
-
-			mirror = new THREE.Reflector( mirrorGeometry, {
-				clipBias: 0.003,
-				textureWidth: window.innerWidth * window.devicePixelRatio,
-				textureHeight: window.innerHeight * window.devicePixelRatio,
-				color: 0x777777,
-				recursion: 1
-			} );
-
+			mirror = new THREE.DeformableMirror();
 			mirror.position.set( 0, 0, 0 );
-			// mirror.geometry.rotateX( - Math.PI / 2 );
-			mirror.rotateX( - 2 * Math.PI / 2 );
+			mirror.rotateX(- Math.PI );
 			mirror.rotateY( + mirrorAngle );
-			mirror.geometry.center();
-
-			geometry = new THREE.TorusGeometry( 10, 3, 3, 100 );
-			material = new THREE.MeshStandardMaterial( { color: 0x0d3681 } );
-
-			mirror.add(new THREE.Mesh( geometry, material ));
-
-			geometry = new THREE.CylinderGeometry( 13, 13, 10, 32 );
-			geometry.rotateX(  Math.PI / 2 );
-			material = new THREE.MeshStandardMaterial( { color: 0x0d3681 } );
-			var cylinder = new THREE.Mesh( geometry, material );
-			cylinder.translateZ(-5.01);
-			mirror.add(cylinder);
-
-
 			scene.add( mirror );
 
-			// addBorders(mirror);
-
-			// geometry = new THREE.CircleBufferGeometry( 10, 50 );
-			mirrorRefractor = new THREE.Refractor( mirror.geometry.clone(), {
-			// mirrorRefractor = new THREE.Refractor( geometry, {
-				// color: 0x999999,
-				// color: 0x000000,
-				textureWidth: 2048,
-				textureHeight: 2048,
-				shader: THREE.HeatRefractionExShader
-			} );
-
-			// mirrorRefractor.material.uniforms[ "tDudv" ].value = dudvMap;
-			mirrorRefractor.material.uniforms[ "waveAmp" ].value = 0.1;
-			mirrorRefractor.material.uniforms[ "waveLength" ].value = 0.1;
-			mirrorRefractor.material.uniforms[ "waveSpeed" ].value = 0.03;
-
-			scene.add( mirrorRefractor );
-			// mirrorRefractor.rotateX( + 2 * Math.PI / 2 );
-			mirrorRefractor.position.set( 0, 0, 0.1 );
-			scene.add( mirrorRefractor );
-
-			// addBorders(mirrorRefractor, 10);
-
-			setVisible(mirrorRefractor, options.correctionOn);
+			mirror.setCorrectionOn(options.correctionOn);
 
 			// Wavefront sensor
 
@@ -513,8 +452,6 @@
 			opticalPath = new THREE.Line( geometry, material );
 			scene.add( opticalPath );
 
-			wavefront.setOpticalPath(opticalPath.geometry.vertices.slice(2, 5));
-
 			// renderer
 
 			renderer = new THREE.WebGLRenderer( { antialias: true } );
@@ -576,8 +513,11 @@
 				refractor.material.uniforms[ "waveSpeed" ].value = value;
 			}).listen();
 			generalGui.add(options, 'correctionOn').onChange(function(on) {
-				setVisible(mirrorRefractor, on);
+				// setVisible(mirrorRefractor, on);
+				mirror.setCorrectionOn(on);
 			}).listen();
+
+			generalGui.add(options, 'generateWavefronts');
 
 			generalGui.add(options, 'MoveCamera0').listen();
 			generalGui.add(options, 'MoveCamera1').listen();
@@ -669,15 +609,11 @@
 
 			refractor.material.uniforms[ "time" ].value += 10*deltaClock;
 			secondRefractor.material.uniforms[ "time" ].value += 10*deltaClock;
-			mirrorRefractor.material.uniforms[ "time" ].value += 10*deltaClock;
-
-			wavefront.time += 100*deltaClock;
-			wavefront.updateDeformation();
-			wavefront.updatePosition();
+			mirror.refractor.material.uniforms[ "time" ].value += 10*deltaClock;
 
 			var now = Date.now();
 
-			if(now > lastWavefrontCreationTime + 1000/wavefrontCreationFrequency) {
+			if(options.generateWavefronts && now > lastWavefrontCreationTime + 1000/wavefrontCreationFrequency) {
 				var newWavefront = wavefrontFactory.createWavefront(opticalPath.geometry.vertices.slice(2, 5));
 				scene.add(newWavefront);
 				lastWavefrontCreationTime = now;

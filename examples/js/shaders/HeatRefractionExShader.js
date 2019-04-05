@@ -1,5 +1,5 @@
 /**
- * @author Mugen87 / https://github.com/Mugen87
+ * @author brunocsmartin / https://github.com/Mugen87
  *
  */
 

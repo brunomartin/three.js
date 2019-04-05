@@ -7,12 +7,13 @@
 THREE.Wavefront = function ( size, divisions ) {
 
   const WavefrontType = {
-    NORMAL: 'normal',
+    CORRECTED: 'corrected',
+    PERTURBATED: 'perturbated',
     TEST_DIRECTION: 'test direction',
     TEST_PLANE: 'test plane'
   }
 
-  this.wavefrontType = WavefrontType.NORMAL;
+  this.wavefrontType = WavefrontType.PERTURBATED;
 
   this.size = size;
   this.divisions = divisions;
@@ -48,7 +49,10 @@ THREE.Wavefront = function ( size, divisions ) {
     deltaTime = (self.time - self.startTime)/1000;
 
     switch(self.wavefrontType) {
-      case WavefrontType.NORMAL:
+      case WavefrontType.CORRECTED:
+        target.set(0, self.size*(u-0.5), self.size*(v-0.5));
+        break;
+      case WavefrontType.PERTURBATED:
         target.set(self.amplitude*Math.sin(2*Math.PI*(u+v-deltaTime*self.frequency)*self.spacialFrequency), self.size*(u-0.5), self.size*(v-0.5));
         break;
       case WavefrontType.TEST_DIRECTION:
@@ -69,6 +73,9 @@ THREE.Wavefront = function ( size, divisions ) {
     if(self.opticalPath.length == 0) {
       self.speed = 0;
       return;
+    } else if(self.opticalPath.length == 2) {
+      self.wavefrontType = WavefrontType.CORRECTED;
+      self.updateDeformation();
     }
 
     // update next destination and remove it from the list
