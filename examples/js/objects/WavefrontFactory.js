@@ -12,7 +12,7 @@ THREE.WavefrontFactory = function ( position ) {
   var self = this;
 
   this.createWavefront = function (opticalPath) {
-    wavefront = new THREE.Wavefront(10, 100);
+    var wavefront = new THREE.Wavefront(10, 100);
     wavefront.position = self.position.clone();
     wavefront.setOpticalPath(opticalPath);
     return wavefront;
