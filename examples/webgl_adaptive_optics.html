@@ -56,6 +56,7 @@
 
 		<script src="js/objects/Water.js"></script>
 		<script src="js/objects/Wavefront.js"></script>
+		<script src="js/objects/WavefrontFactory.js"></script>
 
 		<script src="js/renderers/CSS2DRenderer.js"></script>
 
@@ -92,8 +93,18 @@
 		var mirrorCameraBackground = new THREE.Color( 0.7, 0.5, 0.5 );
 
 		var wavefront;
+
+		var wavefrontFactory;
+		var wavefronts = [];
+
+		var wavefrontCreationFrequency = 1;
+		var startTime = Date.now();
+		var lastWavefrontCreationTime = startTime;
+
 		var waveFrontSensor;
 		var beamSplitter;
+
+		var opticalPath;
 
 		var labelLines = [];
 
@@ -152,13 +163,22 @@
 
 				controls.target = object.position;
 				controls.update();
+			},
+			MoveCamera4 : function () {
+				var object = mirror;
+
+				camera.position.set(0, 91, 0);
+				camera.rotation.set(-1.57, 0, 0.69);
+
+				controls.target = object.position;
+				controls.update();
 			}
 		}
 
 
 		init();
 
-		options.MoveCamera0();
+		options.MoveCamera4();
 		lastCameraPosition = camera.position.clone();
 		// options.MoveCamera2();
 
@@ -182,8 +202,12 @@
 
 			wavefront = new THREE.Wavefront(10, 100);
 			wavefront.position.set(0, 0, -20);
-			wavefront.rotateY(Math.PI/2);
 			scene.add(wavefront);
+
+			// wavefront factory
+
+			var position = new THREE.Vector3(0, 0, -20);
+			wavefrontFactory = new THREE.WavefrontFactory(position);
 
 			// helpers
 			//
@@ -486,8 +510,10 @@
 			geometry.vertices.push(beamSplitter.position.clone());
 			geometry.vertices.push(waveFrontSensor.position.clone());
 
-			var line = new THREE.Line( geometry, material );
-			scene.add( line );
+			opticalPath = new THREE.Line( geometry, material );
+			scene.add( opticalPath );
+
+			wavefront.setOpticalPath(opticalPath.geometry.vertices.slice(2, 5));
 
 			// renderer
 
@@ -557,6 +583,7 @@
 			generalGui.add(options, 'MoveCamera1').listen();
 			generalGui.add(options, 'MoveCamera2').listen();
 			generalGui.add(options, 'MoveCamera3').listen();
+			generalGui.add(options, 'MoveCamera4').listen();
 
 			generalGui.open();
 			gui.domElement.style.zIndex = "1";
@@ -644,25 +671,28 @@
 			secondRefractor.material.uniforms[ "time" ].value += 10*deltaClock;
 			mirrorRefractor.material.uniforms[ "time" ].value += 10*deltaClock;
 
-			if(wavefront.directionChangeCount == 0 && wavefront.position.z > 0) {
-				wavefront.direction = new THREE.Vector3(30*Math.sin(2*mirrorAngle), 0, -30*Math.cos(2*mirrorAngle));
-				wavefront.direction.normalize();
-				wavefront.lookAt(wavefront.direction);
-				wavefront.rotateY(Math.PI/2);
-				wavefront.directionChangeCount++;
-			} else if(wavefront.directionChangeCount == 1 && wavefront.position.z < beamSplitter.position.z) {
-				var angle = Math.PI / 2 + 2*mirrorAngle;
-				wavefront.direction = new THREE.Vector3(30*Math.sin(angle), 0, -30*Math.cos(angle) );
-				wavefront.direction.normalize();
-				wavefront.lookAt(wavefront.direction);
-				wavefront.directionChangeCount++;
-			} else if(wavefront.directionChangeCount == 2 && wavefront.position.z > waveFrontSensor.position.z) {
-				scene.remove( wavefront );
-			}
-
 			wavefront.time += 100*deltaClock;
 			wavefront.updateDeformation();
 			wavefront.updatePosition();
+
+			var now = Date.now();
+
+			if(now > lastWavefrontCreationTime + 1000/wavefrontCreationFrequency) {
+				var newWavefront = wavefrontFactory.createWavefront(opticalPath.geometry.vertices.slice(2, 5));
+				scene.add(newWavefront);
+				lastWavefrontCreationTime = now;
+				wavefronts.push(newWavefront);
+	    }
+
+			wavefronts.forEach(function (element) {
+				element.time += 100*deltaClock;
+				// element.updateDeformation();
+				element.updatePosition();
+
+				if(element.speed == 0) {
+					scene.remove(element);
+				}
+			});
 
 			// animateMirror(clock.getElapsedTime()*1000);
 
