@@ -79,6 +79,9 @@
 			object, gridHelper, cubeCamera1, mirrorMaterial;
 
 		var labelRenderer;
+		var labelZ = 10;
+
+		var objectPositionZ = -300;
 
 		var lastCameraPosition;
 		var secondRefractor;
@@ -89,6 +92,8 @@
 
 		var waveFrontSensor;
 		var beamSplitter;
+
+		var labelLines = [];
 
 		var mirrorAngle = 10 / 180 * Math.PI;
 		mirrorAngle = 3 * Math.PI / 8;
@@ -103,16 +108,15 @@
 			correctionOn: false,
 			waveAmp: 8.0,
 			waveLength: 7.0,
-			waveSpeed: 0.03,
+			waveSpeed: 0.2,
 			renderLabels: false,
 			displayInfo: false,
 
 			MoveCamera0 : function () {
 				var object = mirror;
 
-				camera.lookAt( object.position );
-				camera.position.set(17, 1, -37);
-				camera.rotation.set(-3.12, 0.4, 3.13);
+				camera.position.set(97, 116, 172);
+				camera.rotation.set(-0.59, 0.44, 0.28);
 
 				controls.target = object.position;
 				controls.update();
@@ -121,10 +125,8 @@
 			MoveCamera1 : function () {
 				var object = mirror;
 
-				camera.lookAt(object.position);
-				// camera.position.set(5, -134, -54);
-				camera.position = waveFrontSensor.position.clone();
-				// camera.rotation.set(1.58, 0.02, -2.16);
+				camera.position.set(42, 0, -40);
+				camera.rotation.set(3.13, 0.8, -3.14);
 
 				controls.target = object.position;
 				controls.update();
@@ -153,6 +155,11 @@
 
 
 		init();
+
+		options.MoveCamera0();
+		lastCameraPosition = camera.position.clone();
+		// options.MoveCamera2();
+
 		animate();
 
 		function init() {
@@ -197,7 +204,7 @@
 			var material = new THREE.MeshStandardMaterial( { color: 0xB3232D } );
 
 			object = new THREE.Mesh( geometry, material );
-			object.position.set( 0, 0, -100 );
+			object.position.set( 0, 0, objectPositionZ );
 			object.scale.set(4, 4, 4);
 			scene.add( object );
 
@@ -221,7 +228,7 @@
 				shader: THREE.HeatRefractionExShader
 			} );
 
-			refractor.position.set( 0, 0, -90 );
+			refractor.position.set( 0, 0, objectPositionZ + 20 );
 			scene.add( refractor );
 
 			addBorders(refractor);
@@ -259,7 +266,7 @@
 			secondRefractor.material.uniforms[ "waveSpeed" ].value = options.waveSpeed;
 
 			secondRefractor.rotateZ( - Math.PI / 2 );
-			secondRefractor.position.set( 0, 0, -49.9 );
+			secondRefractor.position.set( 0, 0, objectPositionZ + 20 - 0.1 );
 			scene.add( secondRefractor );
 
 
@@ -405,14 +412,17 @@
 			// Labels
 
 			var div, label;
+			var localPoint = new THREE.Vector3();
+			var worldPoint = new THREE.Vector3();
+			var point = new THREE.Vector3();
 
 			div = document.createElement( 'div' );
 			div.className = 'label';
 			div.textContent = 'Objet';
 			div.style.marginTop = '-1em';
 			label = new THREE.CSS2DObject( div );
-			label.position.set( 0, 0, 0 );
 			object.add( label );
+			globallyAdd(label, new THREE.Vector3(0, 20, 0));
 
 			div = document.createElement( 'div' );
 			div.className = 'label';
@@ -421,6 +431,7 @@
 			label = new THREE.CSS2DObject( div );
 			label.position.set( 0, 0, 0 );
 			mirror.add( label );
+			globallyAdd(label, new THREE.Vector3(0, 20, 0));
 
 			div = document.createElement( 'div' );
 			div.className = 'label';
@@ -429,6 +440,7 @@
 			label = new THREE.CSS2DObject( div );
 			label.position.set( 0, 0, 0 );
 			refractor.add( label );
+			globallyAdd(label, new THREE.Vector3(0, 20, 0));
 
 			div = document.createElement( 'div' );
 			div.className = 'label';
@@ -437,6 +449,7 @@
 			label = new THREE.CSS2DObject( div );
 			label.position.set( 0, 0, 0 );
 			beamSplitter.add( label );
+			globallyAdd(label, new THREE.Vector3(0, 20, 0));
 
 			div = document.createElement( 'div' );
 			div.className = 'label';
@@ -445,6 +458,7 @@
 			label = new THREE.CSS2DObject( div );
 			label.position.set( 0, 0, 0 );
 			waveFrontSensor.add( label );
+			globallyAdd(label, new THREE.Vector3(0, 20, 0));
 
 			// lines
 
@@ -458,12 +472,7 @@
 			geometry.vertices.push(waveFrontSensor.position.clone());
 
 			var line = new THREE.Line( geometry, material );
-
 			scene.add( line );
-
-			// control
-
-			controls = new THREE.OrbitControls( camera );
 
 			// renderer
 
@@ -477,6 +486,7 @@
 			labelRenderer.setSize( window.innerWidth, window.innerHeight );
 			labelRenderer.domElement.style.position = 'absolute';
 			labelRenderer.domElement.style.top = 0;
+			labelRenderer.domElement.style.pointerEvents = 'none';
 
 			if(options.renderLabels) {
 				document.body.appendChild( labelRenderer.domElement );
@@ -498,8 +508,16 @@
 			generalGui.add(options, 'renderLabels').onChange(function(on) {
 				if(on) {
 					document.body.appendChild( labelRenderer.domElement );
+					controls.domElement = labelRenderer.domElement;
+					labelLines.forEach(function(line) {
+						show(line);
+					});
 				} else {
 					document.body.removeChild( labelRenderer.domElement );
+					controls.domElement = renderer.domElement;
+					labelLines.forEach(function(line) {
+						hide(line);
+					});
 				}
 				render();
 			}).listen();
@@ -532,11 +550,9 @@
 
 			window.addEventListener( 'resize', onResize, false );
 
-			options.MoveCamera0();
+			// control
 
-			lastCameraPosition = camera.position.clone();
-
-			options.MoveCamera2();
+			controls = new THREE.OrbitControls( camera, renderer.domElement );
 		}
 
 		function setVisible(object, visible) {
@@ -545,6 +561,7 @@
 						child.visible = visible;
 				}
 			});
+			object.visible = visible;
 		}
 
 		function show(object) {
@@ -553,6 +570,29 @@
 
 		function hide(object) {
 			setVisible(object, false);
+		}
+
+		function globallyAdd(object, point) {
+			var position = new THREE.Vector3();
+			object.parent.getWorldPosition(position);
+			position.add(point);
+
+			var line;
+
+			material = new THREE.LineBasicMaterial( { color: 0xB3232D } );
+			geometry = new THREE.Geometry();
+
+			geometry.vertices.push(position.clone());
+			geometry.vertices[0].y -= 5;
+			geometry.vertices.push(position.clone());
+
+			line = new THREE.Line( geometry, material );
+			scene.add( line );
+
+			labelLines.push(line);
+
+			object.parent.worldToLocal( position );
+			object.position.copy(position);
 		}
 
 		function addBorders(object, angle = 45) {
