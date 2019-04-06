@@ -107,17 +107,70 @@
 
 		var opticalPath;
 
-		var controlPc;
+		var controlPc, computePc;
 
 		var informationPath;
+		var informationCables;
 		var information;
 		var informationArrived = false;
-		var informationDistance = 0;
+		var informationDistance = 0.95;
 		var informationSpeed = 0.9;
 
 		var computing = false;
 		var hasComputed = false;
 		var computationStartTime;
+
+		const Slide = {
+		 OVERVIEW_1: 'OVERVIEW_1',
+		 LOOK_AT_OBJECT_1: 'LOOK_AT_OBJECT_1',
+		 SYSTEM_1: 'SYSTEM_1',
+		 SYSTEM_2: 'SYSTEM_2',
+		 SYSTEM_3: 'SYSTEM_3',
+		 SYSTEM_3: 'SYSTEM_4',
+		}
+
+		var slides = {
+			1: Slide.OVERVIEW_1,
+			2: Slide.LOOK_AT_OBJECT_1,
+			3: Slide.SYSTEM_1,
+			4: Slide.SYSTEM_2,
+			5: Slide.SYSTEM_3,
+			6: Slide.SYSTEM_4,
+		}
+
+		var currentSlide = 0;
+
+		var url_string = window.location.href; //window.location.href
+		var url = new URL(url_string);
+
+		var showOn = url.searchParams.get("show") != null;
+
+		if(showOn) {
+			document.onkeydown = function(e) {
+				// alert(e.code);
+	      switch (e.code) {
+	        case 'Space': // SPACE
+	        case 'ArrowRight': // RIGHT ARROW
+		        currentSlide++;
+						if(currentSlide > slides.length) {
+							currentSlide = slides.length;
+						}
+						moveToSlide(slides[currentSlide]);
+						event.preventDefault();
+						event.stopPropagation();
+		        break;
+	        case 'ArrowLeft':
+						currentSlide--;
+						if(currentSlide < 1) {
+							currentSlide = 1;
+						}
+						moveToSlide(slides[currentSlide]);
+						event.preventDefault();
+						event.stopPropagation();
+		        break;
+	      }
+	    };
+		}
 
 		var lut = new THREE.Lut( "rainbow", 32 );
 
@@ -127,9 +180,11 @@
 		mirrorAngle = 3 * Math.PI / 8;
 		mirrorAngle = Math.PI / 4;
 		mirrorAngle = Math.PI / 8;
-		mirrorAngle = Math.PI / 12;
-		mirrorAngle = Math.PI / 16;
+		// mirrorAngle = Math.PI / 12;
+		// mirrorAngle = Math.PI / 16;
 		// mirrorAngle = 0;
+
+		var controllers = [];
 
 		var options = {
 			perturbationOn: false,
@@ -143,6 +198,8 @@
 			wavefrontCreationFrequency: 1,
 			wavefrontCreatedSpeed: 100,
 			computationTime: 2.0,
+
+			currentSlide: 1,
 
 			MoveCamera0 : function () {
 				var object = mirror;
@@ -201,6 +258,9 @@
 		lastCameraPosition = camera.position.clone();
 		// options.MoveCamera2();
 
+		// move to slide
+		moveToSlide(slides[1]);
+
 		animate();
 
 		function init() {
@@ -225,7 +285,7 @@
 			// helpers
 			//
 			var axesHelper = new THREE.AxesHelper( 30 );
-			// scene.add( axesHelper )
+			scene.add( axesHelper )
 
 			// camera
 
@@ -300,7 +360,7 @@
 			setVisible(secondRefractor, options.perturbationOn);
 
 			mirror = new THREE.DeformableMirror();
-			mirror.position.set( 0, 0, 0 );
+			mirror.position.set( 0, 0, 10 );
 			mirror.rotateX(- Math.PI );
 			mirror.rotateY( + mirrorAngle );
 			scene.add( mirror );
@@ -380,21 +440,29 @@
 
 			controlPc = new THREE.Mesh(geometry, material);
 
-			var position= mirror.position.clone().add(waveFrontSensor.position);
+			var position = mirror.position.clone().add(waveFrontSensor.position);
 			position.multiplyScalar(0.5);
 
 			controlPc.position.copy(position);
 
-			position.copy(controlPc.position.clone().sub(beamSplitter.position));
-			controlPc.position.add(position.clone().multiplyScalar(3/2));
+			position.copy( waveFrontSensor.position.clone().sub(mirror.position) );
+			position.applyAxisAngle ( new THREE.Vector3(0, 1, 0), -Math.PI/2 );
+			position.multiplyScalar(0.5);
 
-			controlPc.rotateY(+ 3 * Math.PI / 4 - 2 * mirrorAngle);
+			// position.copy(controlPc.position.clone().sub(beamSplitter.position));
+			// controlPc.position.add(position.clone().multiplyScalar(3/2));
+			controlPc.position.add(position.clone());
+
+			position = mirror.position.clone().add(waveFrontSensor.position);
+			position.multiplyScalar(0.5);
+
+			controlPc.lookAt(position);
 
 			scene.add( controlPc );
 
 			// cables
 
-			var space = mirror.position.clone().add(waveFrontSensor.position);
+			var space = waveFrontSensor.position.clone().sub(mirror.position);
 			space.multiplyScalar(0.5);
 
 			informationPath = new THREE.CatmullRomCurve3 ( [
@@ -412,33 +480,37 @@
 			var geometry = new THREE.TubeBufferGeometry( informationPath, 50, 1, 8, false );
 			var material = new THREE.MeshStandardMaterial( { color: 0x555555 } );
 
-			var cables = new THREE.Mesh( geometry, material );
+			informationCables = new THREE.Mesh( geometry, material );
 
-			scene.add( cables );
-
-			geometry = new THREE.SphereBufferGeometry(3);
-			material = new THREE.MeshBasicMaterial( { color: 0x6083c2 } );
-
-			information = new THREE.Mesh( geometry, material );
-			scene.add( information );
+			scene.add( informationCables );
 
 			geometry = new THREE.BoxBufferGeometry( 20, 20, 20 );
 			material = new THREE.MeshStandardMaterial( { color: 0x6083c2 } );
 
-			var computePc = new THREE.Mesh(geometry, material);
+			computePc = new THREE.Mesh(geometry, material);
 
 			computePc.position.copy(controlPc.position.clone().sub(new THREE.Vector3(0,20,0)));
+
+			position = mirror.position.clone().add(waveFrontSensor.position);
+			position.multiplyScalar(0.5);
+			position.sub(new THREE.Vector3(0,20,0));
+
+			computePc.lookAt(position);
 
 			scene.add( computePc );
 
 			var moveCables = false;
 
 			if(moveCables) {
+
+				var space = waveFrontSensor.position.clone().sub(mirror.position);
+				space.multiplyScalar(0.5);
+
 				informationPath = new THREE.CatmullRomCurve3 ( [
 						waveFrontSensor.position.clone(),
-						computePc.position.clone().add(mirrorWavefrontSensorDistance),
+						computePc.position.clone().add(space),
 						computePc.position.clone(),
-						computePc.position.clone().sub(mirrorWavefrontSensorDistance),
+						computePc.position.clone().sub(space),
 						mirror.position.clone()
 					],
 					false,
@@ -449,10 +521,10 @@
 				var geometry = new THREE.TubeBufferGeometry( informationPath, 50, 1, 8, false );
 				var material = new THREE.MeshBasicMaterial( { color: 0x555555 } );
 
-				scene.remove(cables);
+				scene.remove(informationCables);
 
-				var cables = new THREE.Mesh( geometry, material );
-				scene.add( cables );
+				informationCables = new THREE.Mesh( geometry, material );
+				scene.add( informationCables );
 			}
 
 			// light
@@ -561,6 +633,8 @@
 			var gui = new dat.GUI();
 			var generalGui = gui.addFolder('General');
 
+			var controller;
+
 			generalGui.add(options, 'displayInfo').onChange(function(on) {
 				if(on) {
 					document.getElementById('info').style.display = 'block';
@@ -585,10 +659,11 @@
 				}
 				render();
 			}).listen();
-			generalGui.add(options, 'perturbationOn').onChange(function(on) {
+			controllers['perturbationOn'] = generalGui.add(options, 'perturbationOn').onChange(function(on) {
 				setVisible(refractor, on);
 				setVisible(secondRefractor, on);
 			}).listen();
+
 			generalGui.add(options, 'waveAmp', 0, 10).step(0.1).onChange(function(value) {
 				refractor.material.uniforms[ "waveAmp" ].value = value;
 			}).listen();
@@ -598,7 +673,7 @@
 			generalGui.add(options, 'waveSpeed', 0.01, 0.5).step(0.01).onChange(function(value) {
 				refractor.material.uniforms[ "waveSpeed" ].value = value;
 			}).listen();
-			generalGui.add(options, 'correctionOn').onChange(function(on) {
+			controllers['correctionOn'] = generalGui.add(options, 'correctionOn').onChange(function(on) {
 				// setVisible(mirrorRefractor, on);
 				mirror.setCorrectionOn(on);
 			}).listen();
@@ -608,13 +683,17 @@
 				wavefrontFactory.wavefrontSpeed = value;
 			}).listen();
 
-			generalGui.add(options, 'generateWavefronts').onChange(function(on) {
+			controllers['generateWavefronts'] = generalGui.add(options, 'generateWavefronts').onChange(function(on) {
 				if(on) {
 					generateWavefront();
+					informationArrived = true;
 				}
 			}).listen();
 			generalGui.add(options, 'computationTime', 0.1, 5).step(0.1).listen();
 
+			generalGui.add(options, 'currentSlide', 1, Object.keys(slides).length).step(1).onChange(function(value) {
+				moveToSlide(slides[value]);
+			}).listen();
 
 			generalGui.add(options, 'MoveCamera0').listen();
 			generalGui.add(options, 'MoveCamera1').listen();
@@ -622,7 +701,12 @@
 			generalGui.add(options, 'MoveCamera3').listen();
 			generalGui.add(options, 'MoveCamera4').listen();
 
-			generalGui.open();
+			if(showOn) {
+				gui.close();
+			} else {
+				generalGui.open();
+			}
+
 			gui.domElement.style.zIndex = "1";
 
 			//
@@ -689,6 +773,130 @@
 
 		}
 
+		function moveToSlide(slide) {
+			switch (slide) {
+				case Slide.OVERVIEW_1:
+					hide(mirror);
+					hide(beamSplitter);
+					hide(waveFrontSensor);
+					hide(opticalPath);
+					hide(controlPc);
+					hide(computePc);
+					hide(informationCables);
+
+					controllers['perturbationOn'].setValue(false);
+
+					options.MoveCamera0();
+					break;
+				case Slide.LOOK_AT_OBJECT_1:
+					hide(mirror);
+					hide(beamSplitter);
+					hide(waveFrontSensor);
+					hide(opticalPath);
+					hide(controlPc);
+					hide(computePc);
+					hide(informationCables);
+
+					// controllers['perturbationOn'].setValue(true);
+
+					options.MoveCamera0();
+
+					break;
+				case Slide.SYSTEM_1:
+					camera.position.set(32, 131, 72);
+					camera.rotation.set(-1.13, 0.22, 0.43);
+					show(mirror);
+					show(beamSplitter);
+					show(waveFrontSensor);
+					show(opticalPath);
+					show(controlPc);
+					hide(computePc);
+					moveCablesToObject(controlPc)
+					show(informationCables);
+
+					controllers['perturbationOn'].setValue(false);
+
+					break;
+					break;
+				case Slide.SYSTEM_2:
+					camera.position.set(32, 131, 72);
+					camera.rotation.set(-1.13, 0.22, 0.43);
+
+					show(mirror);
+					show(beamSplitter);
+					show(waveFrontSensor);
+					show(opticalPath);
+					show(controlPc);
+					hide(computePc);
+					moveCablesToObject(controlPc)
+					show(informationCables);
+
+					controllers['generateWavefronts'].setValue(true);
+
+					break;
+					break;
+				case Slide.SYSTEM_3:
+					camera.position.set(32, 131, 72);
+					camera.rotation.set(-1.13, 0.22, 0.43);
+					show(mirror);
+					show(beamSplitter);
+					show(waveFrontSensor);
+					show(opticalPath);
+					show(controlPc);
+					hide(computePc);
+					moveCablesToObject(controlPc)
+					show(informationCables);
+
+					controllers['generateWavefronts'].setValue(false);
+
+					break;
+				case Slide.SYSTEM_4:
+					camera.position.set(32, 131, 72);
+					camera.rotation.set(-1.13, 0.22, 0.43);
+					show(mirror);
+					show(beamSplitter);
+					show(waveFrontSensor);
+					show(opticalPath);
+					show(controlPc);
+					show(computePc);
+					moveCablesToObject(computePc)
+					show(informationCables);
+
+					controllers['generateWavefronts'].setValue(false);
+
+					break;
+				default:
+
+			}
+
+		}
+
+		function moveCablesToObject(object) {
+
+			var space = waveFrontSensor.position.clone().sub(mirror.position);
+			space.multiplyScalar(0.5);
+
+			informationPath = new THREE.CatmullRomCurve3 ( [
+					waveFrontSensor.position.clone(),
+					object.position.clone().add(space),
+					object.position.clone(),
+					object.position.clone().sub(space),
+					mirror.position.clone()
+				],
+				false,
+				'centripetal',
+				0
+			);
+
+			var geometry = new THREE.TubeBufferGeometry( informationPath, 50, 1, 8, false );
+			var material = new THREE.MeshBasicMaterial( { color: 0x555555 } );
+
+			scene.remove(informationCables);
+
+			informationCables = new THREE.Mesh( geometry, material );
+			scene.add( informationCables );
+		}
+
 		function generateWavefront() {
 			var wavefront = wavefrontFactory.createWavefront(opticalPath.geometry.vertices.slice(2, 5));
 
@@ -728,6 +936,12 @@
 
 				if(element.arrivedAtDestination) {
 					if(!informationAssigned && informationArrived) {
+
+						var geometry = new THREE.SphereBufferGeometry(3);
+						var material = new THREE.MeshBasicMaterial( { color: 0x6083c2 } );
+						information = new THREE.Mesh( geometry, material );
+						scene.add( information );
+
 						information.material.color.copy(element.wavefrontMesh.material.color);
 						informationDistance = 0.;
 						informationArrived = false;
@@ -745,7 +959,7 @@
 					hasComputed = true;
 					computing = false;
 					informationDistance += deltaClock*informationSpeed;
-					show(information);
+					if(information) show(information);
 				}
 			} else {
 				if(hasComputed) {
@@ -754,18 +968,19 @@
 					if(informationDistance > 0.5) {
 						computationStartTime = clock.elapsedTime;
 						computing = true;
-						hide(information);
+						if(information) hide(information);
 					} else {
 						informationDistance += deltaClock*informationSpeed;
 					}
 				}
 			}
 
-			if(!informationArrived) {
-				if(informationDistance > 1.) {
+			if(information && !informationArrived) {
+				if(informationDistance > 0.95) {
 					mirror.indicatorColor.copy( information.material.color );
-					informationDistance = 1.;
+					informationDistance = 0.95;
 					informationArrived = true;
+					scene.remove(information);
 				}
 				information.position.copy(informationPath.getPoint(informationDistance));
 			}
