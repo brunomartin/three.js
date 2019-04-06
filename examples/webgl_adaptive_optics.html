@@ -25,6 +25,18 @@
 				z-index: 1000;
 			}
 
+			#slide_info {
+				position: absolute;
+				bottom: 0px;
+				width: 100%;
+				color: #000000;
+				padding: 5px;
+				font-family:Monospace;
+				font-size:13px;
+				text-align:center;
+				z-index: 1000;
+			}
+
 			.label{
 				color: #FFF;
 				/* color: #0d3681;
@@ -70,8 +82,8 @@
 	<body>
 
 		<div id="container"></div>
-		<div id="info">
-		</div>
+		<div id="info"></div>
+		<div id="slide_info">Information slide</div>
 
 		<script>
 
@@ -147,17 +159,17 @@
 
 		if(showOn) {
 			document.onkeydown = function(e) {
-				// alert(e.code);
+				event.preventDefault();
+				event.stopPropagation();
+
 	      switch (e.code) {
 	        case 'Space': // SPACE
 	        case 'ArrowRight': // RIGHT ARROW
 		        currentSlide++;
-						if(currentSlide > slides.length) {
-							currentSlide = slides.length;
+						if(currentSlide > Object.keys(slides).length) {
+							currentSlide = Object.keys(slides).length;
 						}
 						moveToSlide(slides[currentSlide]);
-						event.preventDefault();
-						event.stopPropagation();
 		        break;
 	        case 'ArrowLeft':
 						currentSlide--;
@@ -165,10 +177,9 @@
 							currentSlide = 1;
 						}
 						moveToSlide(slides[currentSlide]);
-						event.preventDefault();
-						event.stopPropagation();
 		        break;
 	      }
+				document.getElementById('slide_info').innerHTML = currentSlide.toString()+'/test';
 	    };
 		}
 
@@ -693,6 +704,7 @@
 
 			generalGui.add(options, 'currentSlide', 1, Object.keys(slides).length).step(1).onChange(function(value) {
 				moveToSlide(slides[value]);
+				document.getElementById('slide_info').innerHTML = currentSlide.toString()+'/test';
 			}).listen();
 
 			generalGui.add(options, 'MoveCamera0').listen();
@@ -868,7 +880,6 @@
 				default:
 
 			}
-
 		}
 
 		function moveCablesToObject(object) {
