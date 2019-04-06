@@ -39,6 +39,22 @@ THREE.DeformableMirror = function ( size, divisions ) {
 
   this.add(cylinder);
 
+  geometry = new THREE.CylinderBufferGeometry( 2, 2, 2, 32 );
+  // geometry.rotateX(  Math.PI / 2 );
+  material = new THREE.MeshBasicMaterial( { color: 0x0d3681 } );
+
+  var cylinder = new THREE.Mesh( geometry, material );
+  cylinder.translateY(-12);
+  cylinder.translateZ(-3);
+
+  cylinder.material.color;
+
+  cylinder.material.color = new THREE.Color(0xff0000);
+
+  this.indicatorColor = cylinder.material.color;
+
+  this.add(cylinder);
+
   var refractor = new THREE.Refractor( this.mirror.geometry.clone(), {
     // color: 0x999999,
     // color: 0x000000,

@@ -62,6 +62,8 @@
 
 		<script src="js/renderers/CSS2DRenderer.js"></script>
 
+		<script src="js/math/Lut.js"></script>
+
 		<script src='js/libs/dat.gui.min.js'></script>
 
 	</head>
@@ -97,7 +99,6 @@
 		var wavefrontFactory;
 		var wavefronts = [];
 
-		var wavefrontCreationFrequency = 1;
 		var startTime = Date.now();
 		var lastWavefrontCreationTime = startTime;
 
@@ -106,14 +107,28 @@
 
 		var opticalPath;
 
+		var controlPc;
+
+		var informationPath;
+		var information;
+		var informationArrived = false;
+		var informationDistance = 0;
+		var informationSpeed = 0.9;
+
+		var computing = false;
+		var hasComputed = false;
+		var computationStartTime;
+
+		var lut = new THREE.Lut( "rainbow", 32 );
+
 		var labelLines = [];
 
 		var mirrorAngle = 10 / 180 * Math.PI;
 		mirrorAngle = 3 * Math.PI / 8;
 		mirrorAngle = Math.PI / 4;
 		mirrorAngle = Math.PI / 8;
-		// mirrorAngle = Math.PI / 12;
-		// mirrorAngle = Math.PI / 16;
+		mirrorAngle = Math.PI / 12;
+		mirrorAngle = Math.PI / 16;
 		// mirrorAngle = 0;
 
 		var options = {
@@ -125,6 +140,9 @@
 			renderLabels: false,
 			displayInfo: false,
 			generateWavefronts: false,
+			wavefrontCreationFrequency: 1,
+			wavefrontCreatedSpeed: 100,
+			computationTime: 2.0,
 
 			MoveCamera0 : function () {
 				var object = mirror;
@@ -207,7 +225,7 @@
 			// helpers
 			//
 			var axesHelper = new THREE.AxesHelper( 30 );
-			scene.add( axesHelper )
+			// scene.add( axesHelper )
 
 			// camera
 
@@ -236,13 +254,6 @@
 			object.scale.set(4, 4, 4);
 			scene.add( object );
 
-			// grid
-			gridHelper = new THREE.GridHelper( 10, 10, 0x0000ff, 0x808080 );
-			// gridHelper.position.y = - 150;
-			// gridHelper.position.x = - 150;
-			gridHelper.rotateX( Math.PI / 2 );
-			// scene.add( gridHelper );
-
 			// refractor
 
 			// var refractorGeometry = new THREE.PlaneGeometry( 100, 100 );
@@ -261,13 +272,6 @@
 
 			addBorders(refractor);
 
-			// animate();
-
-			// var dudvMap = new THREE.TextureLoader().load( texture_file, function () {
-			// 	animate();
-			// } );
-
-			// dudvMap.wrapS = dudvMap.wrapT = THREE.RepeatWrapping;
 			refractor.material.uniforms[ "waveAmp" ].value = options.waveAmp;
 			refractor.material.uniforms[ "waveLength" ].value = options.waveLength;
 			refractor.material.uniforms[ "waveSpeed" ].value = options.waveSpeed;
@@ -368,6 +372,88 @@
 			waveFrontSensor.rotateZ( waveFrontSensorAngle);
 
 			scene.add( waveFrontSensor );
+
+			// Control
+
+			geometry = new THREE.BoxBufferGeometry( 10, 10, 10 );
+			material = new THREE.MeshStandardMaterial( { color: 0x6083c2 } );
+
+			controlPc = new THREE.Mesh(geometry, material);
+
+			var position= mirror.position.clone().add(waveFrontSensor.position);
+			position.multiplyScalar(0.5);
+
+			controlPc.position.copy(position);
+
+			position.copy(controlPc.position.clone().sub(beamSplitter.position));
+			controlPc.position.add(position.clone().multiplyScalar(3/2));
+
+			controlPc.rotateY(+ 3 * Math.PI / 4 - 2 * mirrorAngle);
+
+			scene.add( controlPc );
+
+			// cables
+
+			var space = mirror.position.clone().add(waveFrontSensor.position);
+			space.multiplyScalar(0.5);
+
+			informationPath = new THREE.CatmullRomCurve3 ( [
+					waveFrontSensor.position.clone(),
+					controlPc.position.clone().add(space),
+					controlPc.position.clone(),
+					controlPc.position.clone().sub(space),
+					mirror.position.clone()
+				],
+				false,
+				'centripetal',
+				0
+			);
+
+			var geometry = new THREE.TubeBufferGeometry( informationPath, 50, 1, 8, false );
+			var material = new THREE.MeshStandardMaterial( { color: 0x555555 } );
+
+			var cables = new THREE.Mesh( geometry, material );
+
+			scene.add( cables );
+
+			geometry = new THREE.SphereBufferGeometry(3);
+			material = new THREE.MeshBasicMaterial( { color: 0x6083c2 } );
+
+			information = new THREE.Mesh( geometry, material );
+			scene.add( information );
+
+			geometry = new THREE.BoxBufferGeometry( 20, 20, 20 );
+			material = new THREE.MeshStandardMaterial( { color: 0x6083c2 } );
+
+			var computePc = new THREE.Mesh(geometry, material);
+
+			computePc.position.copy(controlPc.position.clone().sub(new THREE.Vector3(0,20,0)));
+
+			scene.add( computePc );
+
+			var moveCables = false;
+
+			if(moveCables) {
+				informationPath = new THREE.CatmullRomCurve3 ( [
+						waveFrontSensor.position.clone(),
+						computePc.position.clone().add(mirrorWavefrontSensorDistance),
+						computePc.position.clone(),
+						computePc.position.clone().sub(mirrorWavefrontSensorDistance),
+						mirror.position.clone()
+					],
+					false,
+					'centripetal',
+					0
+				);
+
+				var geometry = new THREE.TubeBufferGeometry( informationPath, 50, 1, 8, false );
+				var material = new THREE.MeshBasicMaterial( { color: 0x555555 } );
+
+				scene.remove(cables);
+
+				var cables = new THREE.Mesh( geometry, material );
+				scene.add( cables );
+			}
 
 			// light
 
@@ -517,7 +603,18 @@
 				mirror.setCorrectionOn(on);
 			}).listen();
 
-			generalGui.add(options, 'generateWavefronts');
+			generalGui.add(options, 'wavefrontCreationFrequency', 0.1, 10).step(0.1).listen();
+			generalGui.add(options, 'wavefrontCreatedSpeed', 10, 500).step(10).onChange(function(value) {
+				wavefrontFactory.wavefrontSpeed = value;
+			}).listen();
+
+			generalGui.add(options, 'generateWavefronts').onChange(function(on) {
+				if(on) {
+					generateWavefront();
+				}
+			}).listen();
+			generalGui.add(options, 'computationTime', 0.1, 5).step(0.1).listen();
+
 
 			generalGui.add(options, 'MoveCamera0').listen();
 			generalGui.add(options, 'MoveCamera1').listen();
@@ -592,18 +689,21 @@
 
 		}
 
-		function animate() {
-				setTimeout( function() {
+		function generateWavefront() {
+			var wavefront = wavefrontFactory.createWavefront(opticalPath.geometry.vertices.slice(2, 5));
 
-	        requestAnimationFrame( animate );
+			var color = lut.getColor(wavefrontFactory.generatedCount%20/20);
 
-	    }, 1000 / 30 );
-
-			render();
-
+			wavefront.wavefrontMesh.material.color = new THREE.Color( color );
+			scene.add(wavefront);
+			lastWavefrontCreationTime = Date.now();
+			wavefronts.push(wavefront);
 		}
 
-		function render() {
+		function animate() {
+				setTimeout( function() {
+	        requestAnimationFrame( animate );
+	    }, 1000 / 30 );
 
 			var deltaClock = clock.getDelta();
 
@@ -613,22 +713,67 @@
 
 			var now = Date.now();
 
-			if(options.generateWavefronts && now > lastWavefrontCreationTime + 1000/wavefrontCreationFrequency) {
-				var newWavefront = wavefrontFactory.createWavefront(opticalPath.geometry.vertices.slice(2, 5));
-				scene.add(newWavefront);
-				lastWavefrontCreationTime = now;
-				wavefronts.push(newWavefront);
-	    }
+			if(options.generateWavefronts && now > lastWavefrontCreationTime + 1000/options.wavefrontCreationFrequency) {
+				generateWavefront();
+			}
 
-			wavefronts.forEach(function (element) {
+			var informationAssigned = false;
+
+			for (i=wavefronts.length - 1; i >= 0; i--) {
+				var element = wavefronts[i];
+
 				element.time += 100*deltaClock;
-				// element.updateDeformation();
+				element.updateDeformation();
 				element.updatePosition();
 
-				if(element.speed == 0) {
+				if(element.arrivedAtDestination) {
+					if(!informationAssigned && informationArrived) {
+						information.material.color.copy(element.wavefrontMesh.material.color);
+						informationDistance = 0.;
+						informationArrived = false;
+						informationAssigned = true;
+						hasComputed = false;
+					}
 					scene.remove(element);
+					wavefronts.splice(i, 1);
+					--i;
 				}
-			});
+			}
+
+			if(computing) {
+				if(clock.elapsedTime > computationStartTime + options.computationTime) {
+					hasComputed = true;
+					computing = false;
+					informationDistance += deltaClock*informationSpeed;
+					show(information);
+				}
+			} else {
+				if(hasComputed) {
+					informationDistance += deltaClock*informationSpeed;
+				} else {
+					if(informationDistance > 0.5) {
+						computationStartTime = clock.elapsedTime;
+						computing = true;
+						hide(information);
+					} else {
+						informationDistance += deltaClock*informationSpeed;
+					}
+				}
+			}
+
+			if(!informationArrived) {
+				if(informationDistance > 1.) {
+					mirror.indicatorColor.copy( information.material.color );
+					informationDistance = 1.;
+					informationArrived = true;
+				}
+				information.position.copy(informationPath.getPoint(informationDistance));
+			}
+
+			render();
+		}
+
+		function render() {
 
 			// animateMirror(clock.getElapsedTime()*1000);
 
