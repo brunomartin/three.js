@@ -41,7 +41,7 @@ THREE.OpticalPath = function () {
       material.color = new THREE.Color(0xff0000);
       material.color = new THREE.Color(0xffffff);
       material.transparent = true;
-      material.opacity = 0.5;
+      material.opacity = 0.8;
 
       var segment = new THREE.Mesh( geometry, material );
 

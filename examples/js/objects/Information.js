@@ -39,8 +39,9 @@ THREE.Information = function (perturbation) {
 
     if(self.computing) {
       if(self.time > self.computationStartTime + self.computeTime) {
-        self.computing = false;
+        self.correction = -self.perturbation;
         self.hasComputed = true;
+        self.computing = false;
       }
     } else if(!self.hasComputed && self.distance > 0.5) {
       self.computationStartTime = self.time;

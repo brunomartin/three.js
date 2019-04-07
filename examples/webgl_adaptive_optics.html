@@ -141,8 +141,6 @@
 
 		var informationPath;
 		var informationCables;
-		// var information;
-		var informationSpeed = 0.9;
 
 		var computing = false;
 		var hasComputed = false;
@@ -229,8 +227,13 @@
 			wavefrontCreatedSpeed: 100,
 			wavefrontSensorOn: true,
 			acquisitionRate: 0.5,
+			transfertSpeed: 1,
 			computeTime: 1.0,
-			perturbation: 0.5,
+
+			perturbationAmp: 0.5,
+			perturbationFrequency: 0.0,
+
+			gain: 0.25,
 
 			currentSlide: 1,
 
@@ -293,6 +296,8 @@
 
 		// move to slide
 		moveToSlide(slides[5]);
+
+		controllers['perturbation'].setValue(0.9);
 
 		animate();
 
@@ -730,22 +735,15 @@
 			}).listen();
 
 			generalGui.add(options, 'computeTime', 0.0, 5).step(0.1).listen();
-			controllers['perturbation'] = generalGui.add(options, 'perturbation', 0.0, 1.0).step(0.01).onChange(function(value) {
-				perturbation = value;
+			generalGui.add(options, 'transfertSpeed', 0.5, 10).step(0.1).listen();
+			generalGui.add(options, 'gain', 0.0, 1.0).step(0.1).listen();
 
-				opticalPath.perturbations[1] = perturbation;
-
-				var color = lut.getColor(options.perturbation);
-				opticalPath.copyColorTo(color, 1);
-
-				perturbation -= mirror.correction;
-				opticalPath.setPerturbationAfter(perturbation, 2)
-
-				var color = opticalPath.cloneColorFromSegment(1);
-				color.multiplyScalar(1-perturbation);
-				opticalPath.copyColorAfter(color, 2);
-
+			controllers['perturbation'] = generalGui.add(options, 'perturbationAmp', 0.0, 1.0).step(0.01).onChange(function(value) {
+				opticalPath.perturbations[1] = value;
+				updateOpticalPathPerturbation();
 			}).listen();
+
+			generalGui.add(options, 'perturbationFrequency', 0.0, 1.0).step(0.1).listen();
 
 			generalGui.add(options, 'currentSlide', 1, Object.keys(slides).length).step(1).onChange(function(value) {
 				moveToSlide(slides[value]);
@@ -971,17 +969,41 @@
 			var perturbation = opticalPath.perturbations[3];
 			var information = wavefrontSensor.createInformation(perturbation);
 
-			information.correction = wavefrontSensor.generatedCount%20/20;
+			var color = lut.getColor(information.correction);
 
-			var color = lut.getColor(wavefrontSensor.generatedCount%20/20);
+			var color = new THREE.Color(1, 0, 0).multiplyScalar(perturbation);
+			color.add(new THREE.Color(1, 1, 1).multiplyScalar(1-perturbation));
+
 			information.material.color.copy(color);
 
-			information.speed = informationSpeed;
+			information.speed = options.transfertSpeed
 			information.computeTime = options.computeTime
 			information.setPath(informationPath);
 
 			informations.push(information);
 			scene.add( information );
+		}
+
+		function updateOpticalPathPerturbation() {
+			var perturbation = opticalPath.perturbations[1];
+
+			var perturbatedColor = new THREE.Color(1, 0, 0);
+			var correctedColor = new THREE.Color(1, 1, 1);
+
+			var color = perturbatedColor.clone().multiplyScalar(perturbation);
+			color.add(correctedColor.clone().multiplyScalar(1-perturbation));
+			opticalPath.copyColorTo(color, 1);
+
+			perturbation -= mirror.correction;
+			opticalPath.setPerturbationAfter(perturbation, 2);
+
+			var color = perturbatedColor.clone().multiplyScalar(mirror.correction);
+			color.add(correctedColor.clone().multiplyScalar(1-mirror.correction));
+			mirror.indicatorColor.copy( color );
+
+			var color = perturbatedColor.clone().multiplyScalar(perturbation);
+			color.add(correctedColor.clone().multiplyScalar(1-perturbation));
+			opticalPath.copyColorAfter(color, 2);
 		}
 
 		function animate() {
@@ -997,7 +1019,11 @@
 
 			var now = Date.now();
 
-			var informationAssigned = false;
+			if(options.perturbationFrequency > 0) {
+				opticalPath.perturbations[1] = options.perturbationAmp;
+				opticalPath.perturbations[1] *= Math.cos(2*Math.PI*now/1000*options.perturbationFrequency);
+				updateOpticalPathPerturbation();
+			}
 
 			for (var i=informations.length - 1; i >= 0; i--) {
 				var information = informations[i];
@@ -1006,15 +1032,9 @@
 
 				if(information.hasArrived) {
 					mirror.indicatorColor.copy( information.material.color );
-					mirror.correction = information.correction;
+					mirror.correction -= options.gain*information.correction;
 
-					var perturbation = opticalPath.perturbations[1];
-					perturbation -= mirror.correction;
-					opticalPath.setPerturbationAfter(perturbation, 2)
-
-					var color = opticalPath.cloneColorFromSegment(1);
-					color.multiplyScalar(1-perturbation);
-					opticalPath.copyColorAfter(information.material.color, 2);
+					updateOpticalPathPerturbation();
 
 					scene.remove(information);
 					informations.splice(i, 1);
