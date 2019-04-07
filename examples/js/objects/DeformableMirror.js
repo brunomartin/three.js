@@ -8,6 +8,8 @@ THREE.DeformableMirror = function ( size, divisions ) {
 
   THREE.Group.call( this );
 
+  this.correction = 0.;
+
   var geometry = new THREE.CircleBufferGeometry( 10, 50 );
 
   var mirror = new THREE.Reflector( geometry, {
@@ -49,9 +51,11 @@ THREE.DeformableMirror = function ( size, divisions ) {
 
   cylinder.material.color;
 
-  cylinder.material.color = new THREE.Color(0xff0000);
+  cylinder.material.color = new THREE.Color(0xffffff);
 
+  // link color to inner mesh material color
   this.indicatorColor = cylinder.material.color;
+  this.correction = 0.;
 
   this.add(cylinder);
 

@@ -13,9 +13,21 @@
 				overflow:hidden;
 			}
 
-			#info {
+			#camera_info {
 				position: absolute;
 				top: 0px;
+				width: 100%;
+				color: #000000;
+				padding: 5px;
+				font-family:Monospace;
+				font-size:13px;
+				text-align:left;
+				z-index: 1000;
+			}
+
+			#live_info {
+				position: absolute;
+				top: 100px;
 				width: 100%;
 				color: #000000;
 				padding: 5px;
@@ -70,7 +82,10 @@
 		<script src="js/objects/Water.js"></script>
 		<script src="js/objects/Wavefront.js"></script>
 		<script src="js/objects/WavefrontFactory.js"></script>
+		<script src="js/objects/WavefrontSensor.js"></script>
 		<script src="js/objects/DeformableMirror.js"></script>
+		<script src="js/objects/OpticalPath.js"></script>
+		<script src="js/objects/Information.js"></script>
 
 		<script src="js/renderers/CSS2DRenderer.js"></script>
 
@@ -82,7 +97,8 @@
 	<body>
 
 		<div id="container"></div>
-		<div id="info"></div>
+		<div id="camera_info"></div>
+		<div id="live_info"></div>
 		<div id="slide_info">Information slide</div>
 
 		<script>
@@ -114,18 +130,18 @@
 		var startTime = Date.now();
 		var lastWavefrontCreationTime = startTime;
 
-		var waveFrontSensor;
+		var wavefrontSensor;
 		var beamSplitter;
 
 		var opticalPath;
 
 		var controlPc, computePc;
 
+		var informations = [];
+
 		var informationPath;
 		var informationCables;
-		var information;
-		var informationArrived = false;
-		var informationDistance = 0.95;
+		// var information;
 		var informationSpeed = 0.9;
 
 		var computing = false;
@@ -133,12 +149,12 @@
 		var computationStartTime;
 
 		const Slide = {
-		 OVERVIEW_1: 'OVERVIEW_1',
-		 LOOK_AT_OBJECT_1: 'LOOK_AT_OBJECT_1',
+		 OVERVIEW_1: 'Vue d\'ensemble',
+		 LOOK_AT_OBJECT_1: 'LOOK_AT_OBJECT_TEST',
 		 SYSTEM_1: 'SYSTEM_1',
 		 SYSTEM_2: 'SYSTEM_2',
 		 SYSTEM_3: 'SYSTEM_3',
-		 SYSTEM_3: 'SYSTEM_4',
+		 SYSTEM_4: 'SYSTEM_4',
 		}
 
 		var slides = {
@@ -179,7 +195,9 @@
 						moveToSlide(slides[currentSlide]);
 		        break;
 	      }
-				document.getElementById('slide_info').innerHTML = currentSlide.toString()+'/test';
+				var title = slides[currentSlide];
+				title += " (" + currentSlide.toString()+"/"+Object.keys(slides).length.toString() + ")";
+				document.getElementById('slide_info').innerHTML = title;
 	    };
 		}
 
@@ -204,11 +222,15 @@
 			waveLength: 7.0,
 			waveSpeed: 0.2,
 			renderLabels: false,
-			displayInfo: false,
+			displayCameraInfo: false,
+			displayLiveInfo: false,
 			generateWavefronts: false,
 			wavefrontCreationFrequency: 1,
 			wavefrontCreatedSpeed: 100,
-			computationTime: 2.0,
+			wavefrontSensorOn: true,
+			acquisitionRate: 0.5,
+			computeTime: 1.0,
+			perturbation: 0.5,
 
 			currentSlide: 1,
 
@@ -270,17 +292,23 @@
 		// options.MoveCamera2();
 
 		// move to slide
-		moveToSlide(slides[1]);
+		moveToSlide(slides[5]);
 
 		animate();
 
 		function init() {
 
 
-			if(options.displayInfo) {
-				document.getElementById('info').style.display = 'block';
+			if(options.displayCameraInfo) {
+				document.getElementById('camera_info').style.display = 'block';
 			} else {
-				document.getElementById('info').style.display = 'none';
+				document.getElementById('camera_info').style.display = 'none';
+			}
+
+			if(options.displayLiveInfo) {
+				document.getElementById('live_info').style.display = 'block';
+			} else {
+				document.getElementById('live_info').style.display = 'none';
 			}
 
 			// scene
@@ -371,7 +399,7 @@
 			setVisible(secondRefractor, options.perturbationOn);
 
 			mirror = new THREE.DeformableMirror();
-			mirror.position.set( 0, 0, 10 );
+			mirror.position.set( 0, 0, 0 );
 			mirror.rotateX(- Math.PI );
 			mirror.rotateY( + mirrorAngle );
 			scene.add( mirror );
@@ -417,32 +445,21 @@
 
 			scene.add( beamSplitter );
 
-			waveFrontSensor = new THREE.Group();
+			// Wavefront Sensor
 
-			geometry = new THREE.BoxGeometry( 10, 10, 10 );
-			material = new THREE.MeshStandardMaterial( { color: 0x6083c2 } );
+			wavefrontSensor = new THREE.WavefrontSensor();
 
-			element = new THREE.Mesh( geometry, material );
-
-			waveFrontSensor.add(element);
-
-			geometry = new THREE.CylinderGeometry( 4.5, 4.5, 2, 32 );
-			material = new THREE.MeshStandardMaterial( { color: 0x6083c2 } );
-
-			element = new THREE.Mesh( geometry, material );
-			element.position.set(0, -5.5, 0);
-
-			waveFrontSensor.add(element);
-
-			waveFrontSensor.rotateX(+ Math.PI / 2);
-			waveFrontSensor.position.add(beamSplitter.position.clone());
+			wavefrontSensor.rotateX(+ Math.PI / 2);
+			wavefrontSensor.position.add(beamSplitter.position.clone());
 			var angle = Math.PI / 2 + 2*mirrorAngle;
-			waveFrontSensor.position.add( new THREE.Vector3(30*Math.sin(angle), 0, -30*Math.cos(angle) ));
+			wavefrontSensor.position.add( new THREE.Vector3(30*Math.sin(angle), 0, -30*Math.cos(angle) ));
 
-			var waveFrontSensorAngle = - Math.PI / 2 + 2 * mirrorAngle;
-			waveFrontSensor.rotateZ( waveFrontSensorAngle);
+			var wavefrontSensorAngle = - Math.PI / 2 + 2 * mirrorAngle;
+			wavefrontSensor.rotateZ( wavefrontSensorAngle);
 
-			scene.add( waveFrontSensor );
+			wavefrontSensor.acquisitionRate = options.acquisitionRate;
+
+			scene.add( wavefrontSensor );
 
 			// Control
 
@@ -451,12 +468,12 @@
 
 			controlPc = new THREE.Mesh(geometry, material);
 
-			var position = mirror.position.clone().add(waveFrontSensor.position);
+			var position = mirror.position.clone().add(wavefrontSensor.position);
 			position.multiplyScalar(0.5);
 
 			controlPc.position.copy(position);
 
-			position.copy( waveFrontSensor.position.clone().sub(mirror.position) );
+			position.copy( wavefrontSensor.position.clone().sub(mirror.position) );
 			position.applyAxisAngle ( new THREE.Vector3(0, 1, 0), -Math.PI/2 );
 			position.multiplyScalar(0.5);
 
@@ -464,7 +481,7 @@
 			// controlPc.position.add(position.clone().multiplyScalar(3/2));
 			controlPc.position.add(position.clone());
 
-			position = mirror.position.clone().add(waveFrontSensor.position);
+			position = mirror.position.clone().add(wavefrontSensor.position);
 			position.multiplyScalar(0.5);
 
 			controlPc.lookAt(position);
@@ -473,11 +490,11 @@
 
 			// cables
 
-			var space = waveFrontSensor.position.clone().sub(mirror.position);
+			var space = wavefrontSensor.position.clone().sub(mirror.position);
 			space.multiplyScalar(0.5);
 
 			informationPath = new THREE.CatmullRomCurve3 ( [
-					waveFrontSensor.position.clone(),
+					wavefrontSensor.position.clone(),
 					controlPc.position.clone().add(space),
 					controlPc.position.clone(),
 					controlPc.position.clone().sub(space),
@@ -487,6 +504,12 @@
 				'centripetal',
 				0
 			);
+
+			// var information = new THREE.Information(0.45);
+			// information.setPath(informationPath);
+			//
+			// information.time = 0.5;
+			// information.updatePosition();
 
 			var geometry = new THREE.TubeBufferGeometry( informationPath, 50, 1, 8, false );
 			var material = new THREE.MeshStandardMaterial( { color: 0x555555 } );
@@ -502,7 +525,7 @@
 
 			computePc.position.copy(controlPc.position.clone().sub(new THREE.Vector3(0,20,0)));
 
-			position = mirror.position.clone().add(waveFrontSensor.position);
+			position = mirror.position.clone().add(wavefrontSensor.position);
 			position.multiplyScalar(0.5);
 			position.sub(new THREE.Vector3(0,20,0));
 
@@ -514,11 +537,11 @@
 
 			if(moveCables) {
 
-				var space = waveFrontSensor.position.clone().sub(mirror.position);
+				var space = wavefrontSensor.position.clone().sub(mirror.position);
 				space.multiplyScalar(0.5);
 
 				informationPath = new THREE.CatmullRomCurve3 ( [
-						waveFrontSensor.position.clone(),
+						wavefrontSensor.position.clone(),
 						computePc.position.clone().add(space),
 						computePc.position.clone(),
 						computePc.position.clone().sub(space),
@@ -598,7 +621,7 @@
 			div.style.marginTop = '-1em';
 			label = new THREE.CSS2DObject( div );
 			label.position.set( 0, 0, 0 );
-			waveFrontSensor.add( label );
+			wavefrontSensor.add( label );
 			globallyAdd(label, new THREE.Vector3(0, 20, 0));
 
 			if(!options.renderLabels) {
@@ -607,19 +630,20 @@
 				});
 			}
 
-			// lines
+			// opical path
 
-			material = new THREE.LineBasicMaterial( { color: 0x0000ff } );
-			geometry = new THREE.Geometry();
+			opticalPath = new THREE.OpticalPath();
 
-			geometry.vertices.push(object.position.clone());
-			geometry.vertices.push(refractor.position.clone());
-			geometry.vertices.push(mirror.position.clone());
-			geometry.vertices.push(beamSplitter.position.clone());
-			geometry.vertices.push(waveFrontSensor.position.clone());
+			opticalPath.addObject(object);
+			opticalPath.addObject(refractor);
+			opticalPath.addObject(mirror);
+			opticalPath.addObject(beamSplitter);
+			opticalPath.addObject(wavefrontSensor);
 
-			opticalPath = new THREE.Line( geometry, material );
-			scene.add( opticalPath );
+			opticalPath.createRay();
+
+			scene.add( opticalPath.line );
+			scene.add( opticalPath.ray );
 
 			// renderer
 
@@ -646,12 +670,12 @@
 
 			var controller;
 
-			generalGui.add(options, 'displayInfo').onChange(function(on) {
-				if(on) {
-					document.getElementById('info').style.display = 'block';
-				} else {
-					document.getElementById('info').style.display = 'none';
-				}
+			generalGui.add(options, 'displayCameraInfo').onChange(function(on) {
+				document.getElementById('camera_info').style.display = on?'block':'none';
+				render();
+			}).listen();
+			generalGui.add(options, 'displayLiveInfo').onChange(function(on) {
+				document.getElementById('live_info').style.display = on?'block':'none';
 				render();
 			}).listen();
 			generalGui.add(options, 'renderLabels').onChange(function(on) {
@@ -685,7 +709,6 @@
 				refractor.material.uniforms[ "waveSpeed" ].value = value;
 			}).listen();
 			controllers['correctionOn'] = generalGui.add(options, 'correctionOn').onChange(function(on) {
-				// setVisible(mirrorRefractor, on);
 				mirror.setCorrectionOn(on);
 			}).listen();
 
@@ -700,7 +723,29 @@
 					informationArrived = true;
 				}
 			}).listen();
-			generalGui.add(options, 'computationTime', 0.1, 5).step(0.1).listen();
+			controllers['wavefrontSensorOn'] = generalGui.add(options, 'wavefrontSensorOn').listen();
+
+			generalGui.add(options, 'acquisitionRate', 0.1, 10).step(0.1).onChange(function(value) {
+				wavefrontSensor.acquisitionRate = value;
+			}).listen();
+
+			generalGui.add(options, 'computeTime', 0.0, 5).step(0.1).listen();
+			controllers['perturbation'] = generalGui.add(options, 'perturbation', 0.0, 1.0).step(0.01).onChange(function(value) {
+				perturbation = value;
+
+				opticalPath.perturbations[1] = perturbation;
+
+				var color = lut.getColor(options.perturbation);
+				opticalPath.copyColorTo(color, 1);
+
+				perturbation -= mirror.correction;
+				opticalPath.setPerturbationAfter(perturbation, 2)
+
+				var color = opticalPath.cloneColorFromSegment(1);
+				color.multiplyScalar(1-perturbation);
+				opticalPath.copyColorAfter(color, 2);
+
+			}).listen();
 
 			generalGui.add(options, 'currentSlide', 1, Object.keys(slides).length).step(1).onChange(function(value) {
 				moveToSlide(slides[value]);
@@ -790,8 +835,8 @@
 				case Slide.OVERVIEW_1:
 					hide(mirror);
 					hide(beamSplitter);
-					hide(waveFrontSensor);
-					hide(opticalPath);
+					hide(wavefrontSensor);
+					hide(opticalPath.line);
 					hide(controlPc);
 					hide(computePc);
 					hide(informationCables);
@@ -803,8 +848,8 @@
 				case Slide.LOOK_AT_OBJECT_1:
 					hide(mirror);
 					hide(beamSplitter);
-					hide(waveFrontSensor);
-					hide(opticalPath);
+					hide(wavefrontSensor);
+					hide(opticalPath.line);
 					hide(controlPc);
 					hide(computePc);
 					hide(informationCables);
@@ -819,8 +864,8 @@
 					camera.rotation.set(-1.13, 0.22, 0.43);
 					show(mirror);
 					show(beamSplitter);
-					show(waveFrontSensor);
-					show(opticalPath);
+					show(wavefrontSensor);
+					show(opticalPath.line);
 					show(controlPc);
 					hide(computePc);
 					moveCablesToObject(controlPc)
@@ -836,8 +881,8 @@
 
 					show(mirror);
 					show(beamSplitter);
-					show(waveFrontSensor);
-					show(opticalPath);
+					show(wavefrontSensor);
+					show(opticalPath.line);
 					show(controlPc);
 					hide(computePc);
 					moveCablesToObject(controlPc)
@@ -852,8 +897,8 @@
 					camera.rotation.set(-1.13, 0.22, 0.43);
 					show(mirror);
 					show(beamSplitter);
-					show(waveFrontSensor);
-					show(opticalPath);
+					show(wavefrontSensor);
+					show(opticalPath.line);
 					show(controlPc);
 					hide(computePc);
 					moveCablesToObject(controlPc)
@@ -867,8 +912,8 @@
 					camera.rotation.set(-1.13, 0.22, 0.43);
 					show(mirror);
 					show(beamSplitter);
-					show(waveFrontSensor);
-					show(opticalPath);
+					show(wavefrontSensor);
+					show(opticalPath.line);
 					show(controlPc);
 					show(computePc);
 					moveCablesToObject(computePc)
@@ -884,11 +929,11 @@
 
 		function moveCablesToObject(object) {
 
-			var space = waveFrontSensor.position.clone().sub(mirror.position);
+			var space = wavefrontSensor.position.clone().sub(mirror.position);
 			space.multiplyScalar(0.5);
 
 			informationPath = new THREE.CatmullRomCurve3 ( [
-					waveFrontSensor.position.clone(),
+					wavefrontSensor.position.clone(),
 					object.position.clone().add(space),
 					object.position.clone(),
 					object.position.clone().sub(space),
@@ -914,15 +959,35 @@
 			var color = lut.getColor(wavefrontFactory.generatedCount%20/20);
 
 			wavefront.wavefrontMesh.material.color = new THREE.Color( color );
+			wavefront.perturbation = wavefrontFactory.generatedCount%20/20;
+
 			scene.add(wavefront);
 			lastWavefrontCreationTime = Date.now();
 			wavefronts.push(wavefront);
 		}
 
+		function generateInformation() {
+
+			var perturbation = opticalPath.perturbations[3];
+			var information = wavefrontSensor.createInformation(perturbation);
+
+			information.correction = wavefrontSensor.generatedCount%20/20;
+
+			var color = lut.getColor(wavefrontSensor.generatedCount%20/20);
+			information.material.color.copy(color);
+
+			information.speed = informationSpeed;
+			information.computeTime = options.computeTime
+			information.setPath(informationPath);
+
+			informations.push(information);
+			scene.add( information );
+		}
+
 		function animate() {
 				setTimeout( function() {
 	        requestAnimationFrame( animate );
-	    }, 1000 / 30 );
+	    }, 1000 / 60 );
 
 			var deltaClock = clock.getDelta();
 
@@ -932,13 +997,32 @@
 
 			var now = Date.now();
 
-			if(options.generateWavefronts && now > lastWavefrontCreationTime + 1000/options.wavefrontCreationFrequency) {
-				generateWavefront();
-			}
-
 			var informationAssigned = false;
 
-			for (i=wavefronts.length - 1; i >= 0; i--) {
+			for (var i=informations.length - 1; i >= 0; i--) {
+				var information = informations[i];
+
+				information.updatePosition(deltaClock);
+
+				if(information.hasArrived) {
+					mirror.indicatorColor.copy( information.material.color );
+					mirror.correction = information.correction;
+
+					var perturbation = opticalPath.perturbations[1];
+					perturbation -= mirror.correction;
+					opticalPath.setPerturbationAfter(perturbation, 2)
+
+					var color = opticalPath.cloneColorFromSegment(1);
+					color.multiplyScalar(1-perturbation);
+					opticalPath.copyColorAfter(information.material.color, 2);
+
+					scene.remove(information);
+					informations.splice(i, 1);
+					--i;
+				}
+			}
+
+			for (var i=wavefronts.length - 1; i >= 0; i--) {
 				var element = wavefronts[i];
 
 				element.time += 100*deltaClock;
@@ -946,54 +1030,21 @@
 				element.updatePosition();
 
 				if(element.arrivedAtDestination) {
-					if(!informationAssigned && informationArrived) {
-
-						var geometry = new THREE.SphereBufferGeometry(3);
-						var material = new THREE.MeshBasicMaterial( { color: 0x6083c2 } );
-						information = new THREE.Mesh( geometry, material );
-						scene.add( information );
-
-						information.material.color.copy(element.wavefrontMesh.material.color);
-						informationDistance = 0.;
-						informationArrived = false;
-						informationAssigned = true;
-						hasComputed = false;
-					}
 					scene.remove(element);
 					wavefronts.splice(i, 1);
 					--i;
 				}
 			}
 
-			if(computing) {
-				if(clock.elapsedTime > computationStartTime + options.computationTime) {
-					hasComputed = true;
-					computing = false;
-					informationDistance += deltaClock*informationSpeed;
-					if(information) show(information);
-				}
-			} else {
-				if(hasComputed) {
-					informationDistance += deltaClock*informationSpeed;
-				} else {
-					if(informationDistance > 0.5) {
-						computationStartTime = clock.elapsedTime;
-						computing = true;
-						if(information) hide(information);
-					} else {
-						informationDistance += deltaClock*informationSpeed;
-					}
-				}
+			if(options.generateWavefronts && now > lastWavefrontCreationTime + 1000/options.wavefrontCreationFrequency) {
+				generateWavefront();
 			}
 
-			if(information && !informationArrived) {
-				if(informationDistance > 0.95) {
-					mirror.indicatorColor.copy( information.material.color );
-					informationDistance = 0.95;
-					informationArrived = true;
-					scene.remove(information);
+			if(options.wavefrontSensorOn) {
+				if (clock.elapsedTime > wavefrontSensor.lastAcquisitionTime + 1/wavefrontSensor.acquisitionRate) {
+					wavefrontSensor.lastAcquisitionTime = clock.elapsedTime;
+					generateInformation();
 				}
-				information.position.copy(informationPath.getPoint(informationDistance));
 			}
 
 			render();
@@ -1007,29 +1058,35 @@
 
 			// info.innerHTML = clock.elapsedTime;
 
-			var info = document.getElementById('info');
-
 			if(lastCameraPosition.distanceTo( camera.position ) > 0.1) {
+				var camera_info = document.getElementById('camera_info');
 
-				info.innerHTML = "";
+				camera_info.innerHTML = "";
 
-				info.innerHTML = "camera.position.set(";
-				info.innerHTML += Math.round(camera.position.x);
-				info.innerHTML += ", " + Math.round(camera.position.y);
-				info.innerHTML += ", " + Math.round(camera.position.z) + ");";
+				camera_info.innerHTML = "camera.position.set(";
+				camera_info.innerHTML += Math.round(camera.position.x);
+				camera_info.innerHTML += ", " + Math.round(camera.position.y);
+				camera_info.innerHTML += ", " + Math.round(camera.position.z) + ");";
 
-				info.innerHTML += "\n\r</br>";
+				camera_info.innerHTML += "\n\r</br>";
 
-				info.innerHTML += "camera.rotation.set(";
-				info.innerHTML += Math.round(camera.rotation.x*100)/100;
-				info.innerHTML += ", " + Math.round(camera.rotation.y*100)/100;
-				info.innerHTML += ", " + Math.round(camera.rotation.z*100)/100 + ");";
-
-				// info.innerHTML += ", " + JSON.stringify(camera.matrix.toArray());
+				camera_info.innerHTML += "camera.rotation.set(";
+				camera_info.innerHTML += Math.round(camera.rotation.x*100)/100;
+				camera_info.innerHTML += ", " + Math.round(camera.rotation.y*100)/100;
+				camera_info.innerHTML += ", " + Math.round(camera.rotation.z*100)/100 + ");";
 
 				lastCameraPosition = camera.position.clone();
 			}
 
+			var live_info = document.getElementById('live_info');
+
+			live_info.innerHTML = "opticalPath.perturbations : ";
+			live_info.innerHTML += opticalPath.perturbations.join(', ');
+
+			live_info.innerHTML += "\n\r</br>";
+
+			live_info.innerHTML += "mirror.correction : ";
+			live_info.innerHTML += mirror.correction.toString();
 
 			// renderer.clearDepth();
 			//
