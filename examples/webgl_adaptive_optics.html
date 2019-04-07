@@ -117,6 +117,8 @@
 
 		var objectPositionZ = -300;
 
+		var observer;
+
 		var lastCameraPosition;
 
 		var mirrorRefractor;
@@ -156,30 +158,19 @@
 
 		var cameraTransition = true;
 
-		const Slide = {
-		 OVERVIEW_1: 'Vue d\'ensemble',
-		 LOOK_AT_OBJECT_1: 'LOOK_AT_OBJECT_TEST',
-		 SYSTEM_1: 'SYSTEM_1',
-		 SYSTEM_2: 'SYSTEM_2',
-		 SYSTEM_3: 'SYSTEM_3',
-		 SYSTEM_4: 'SYSTEM_4',
-		}
-
-		var slides = {
-			1: Slide.OVERVIEW_1,
-			2: Slide.LOOK_AT_OBJECT_1,
-			3: Slide.SYSTEM_1,
-			4: Slide.SYSTEM_2,
-			5: Slide.SYSTEM_3,
-			6: Slide.SYSTEM_4,
-		}
-
+		var slideCount = 10;
 		var currentSlide = 0;
 
 		var url_string = window.location.href; //window.location.href
 		var url = new URL(url_string);
 
 		var showOn = url.searchParams.get("show") != null;
+
+		var labels = [];
+
+		var textureLoader = new THREE.TextureLoader();
+
+		var controlSystem = [];
 
 		if(showOn) {
 			document.onkeydown = function(e) {
@@ -190,22 +181,19 @@
 	        case 'Space': // SPACE
 	        case 'ArrowRight': // RIGHT ARROW
 		        currentSlide++;
-						if(currentSlide > Object.keys(slides).length) {
-							currentSlide = Object.keys(slides).length;
+						if(currentSlide > slideCount) {
+							currentSlide = slideCount;
 						}
-						moveToSlide(slides[currentSlide]);
+						moveToSlide(currentSlide);
 		        break;
 	        case 'ArrowLeft':
 						currentSlide--;
 						if(currentSlide < 1) {
 							currentSlide = 1;
 						}
-						moveToSlide(slides[currentSlide]);
+						moveToSlide(currentSlide);
 		        break;
 	      }
-				var title = slides[currentSlide];
-				title += " (" + currentSlide.toString()+"/"+Object.keys(slides).length.toString() + ")";
-				document.getElementById('slide_info').innerHTML = title;
 	    };
 		}
 
@@ -305,12 +293,16 @@
 
 		init();
 
-		options.MoveCamera4();
+		// options.MoveCamera4();
 		lastCameraPosition = camera.position.clone();
 		// options.MoveCamera2();
 
-		// move to slide
-		moveToSlide(slides[5]);
+		if(showOn) {
+			// move to slide
+			moveToSlide(1);
+		} else {
+			options.MoveCamera0();
+		}
 
 		controllers['perturbation'].setValue(0.9);
 
@@ -344,7 +336,7 @@
 			// helpers
 			//
 			var axesHelper = new THREE.AxesHelper( 30 );
-			scene.add( axesHelper )
+			if(!showOn) scene.add( axesHelper )
 
 			// camera
 
@@ -369,9 +361,28 @@
 			var material = new THREE.MeshStandardMaterial( { color: 0xB3232D } );
 
 			object = new THREE.Mesh( geometry, material );
-			object.position.set( 0, 0, objectPositionZ );
 			object.scale.set(4, 4, 4);
+
+			var moonGeometry = new THREE.SphereBufferGeometry( 15, 16, 16 );
+			var moonMaterial = new THREE.MeshPhongMaterial( {
+				shininess: 5,
+				map: textureLoader.load( 'textures/planets/moon_1024.jpg' )
+			} );
+			object = new THREE.Mesh( moonGeometry, moonMaterial );
+
+
+			object.position.set( 0, 0, objectPositionZ );
+
 			scene.add( object );
+
+			// Observer
+
+			var spriteMap = new THREE.TextureLoader().load( 'textures/sprite.png' );
+			var spriteMaterial = new THREE.SpriteMaterial( { map: spriteMap, color: 0xffffff } );
+			observer = new THREE.Sprite( spriteMaterial );
+			observer.scale.set(10, 10, 1)
+
+			scene.add( observer );
 
 			// refractor
 
@@ -419,6 +430,7 @@
 			element = new THREE.Mesh( geometry, material );
 
 			beamSplitter.add(element);
+			controlSystem.push(beamSplitter);
 
 			geometry = new THREE.PlaneBufferGeometry( 20, 20 );
 
@@ -459,8 +471,9 @@
 			wavefrontSensor.acquisitionRate = options.acquisitionRate;
 
 			scene.add( wavefrontSensor );
+			controlSystem.push(wavefrontSensor);
 
-			// Control
+			// Control pc
 
 			geometry = new THREE.BoxBufferGeometry( 10, 10, 10 );
 			material = new THREE.MeshStandardMaterial( { color: 0x6083c2 } );
@@ -476,8 +489,6 @@
 			position.applyAxisAngle ( new THREE.Vector3(0, 1, 0), -Math.PI/2 );
 			position.multiplyScalar(0.5);
 
-			// position.copy(controlPc.position.clone().sub(beamSplitter.position));
-			// controlPc.position.add(position.clone().multiplyScalar(3/2));
 			controlPc.position.add(position.clone());
 
 			position = mirror.position.clone().add(wavefrontSensor.position);
@@ -486,36 +497,14 @@
 			controlPc.lookAt(position);
 
 			scene.add( controlPc );
+			controlSystem.push(controlPc);
 
 			// cables
 
-			var space = wavefrontSensor.position.clone().sub(mirror.position);
-			space.multiplyScalar(0.5);
+			plugInformationCablesToObject(controlPc);
+			controlSystem.push(informationCables);
 
-			informationPath = new THREE.CatmullRomCurve3 ( [
-					wavefrontSensor.position.clone(),
-					controlPc.position.clone().add(space),
-					controlPc.position.clone(),
-					controlPc.position.clone().sub(space),
-					mirror.position.clone()
-				],
-				false,
-				'centripetal',
-				0
-			);
-
-			// var information = new THREE.Information(0.45);
-			// information.setPath(informationPath);
-			//
-			// information.time = 0.5;
-			// information.updatePosition();
-
-			var geometry = new THREE.TubeBufferGeometry( informationPath, 50, 1, 8, false );
-			var material = new THREE.MeshStandardMaterial( { color: 0x555555 } );
-
-			informationCables = new THREE.Mesh( geometry, material );
-
-			scene.add( informationCables );
+			// compute pc
 
 			geometry = new THREE.BoxBufferGeometry( 20, 20, 20 );
 			material = new THREE.MeshStandardMaterial( { color: 0x6083c2 } );
@@ -531,34 +520,9 @@
 			computePc.lookAt(position);
 
 			scene.add( computePc );
+			controlSystem.push(computePc);
 
-			var moveCables = false;
-
-			if(moveCables) {
-
-				var space = wavefrontSensor.position.clone().sub(mirror.position);
-				space.multiplyScalar(0.5);
-
-				informationPath = new THREE.CatmullRomCurve3 ( [
-						wavefrontSensor.position.clone(),
-						computePc.position.clone().add(space),
-						computePc.position.clone(),
-						computePc.position.clone().sub(space),
-						mirror.position.clone()
-					],
-					false,
-					'centripetal',
-					0
-				);
-
-				var geometry = new THREE.TubeBufferGeometry( informationPath, 50, 1, 8, false );
-				var material = new THREE.MeshBasicMaterial( { color: 0x555555 } );
-
-				scene.remove(informationCables);
-
-				informationCables = new THREE.Mesh( geometry, material );
-				scene.add( informationCables );
-			}
+			plugInformationCablesToObject(computePc);
 
 			// light
 
@@ -569,65 +533,21 @@
 			camera.add( pointLight );
 			scene.add( camera );
 
-			// mirrorCamera.lookAt( mirror.position );
-			// scene.add( mirrorCamera );
-
 			// Labels
 
-			var div, label;
+			// var div, label;
 			var localPoint = new THREE.Vector3();
 			var worldPoint = new THREE.Vector3();
 			var point = new THREE.Vector3();
 
-			div = document.createElement( 'div' );
-			div.className = 'label';
-			div.textContent = 'Objet';
-			div.style.marginTop = '-1em';
-			label = new THREE.CSS2DObject( div );
-			object.add( label );
-			globallyAdd(label, new THREE.Vector3(0, 20, 0));
 
-			div = document.createElement( 'div' );
-			div.className = 'label';
-			div.textContent = 'Miroir';
-			div.style.marginTop = '-1em';
-			label = new THREE.CSS2DObject( div );
-			label.position.set( 0, 0, 0 );
-			mirror.add( label );
-			globallyAdd(label, new THREE.Vector3(0, 20, 0));
-
-			div = document.createElement( 'div' );
-			div.className = 'label';
-			div.textContent = 'Perturbation';
-			div.style.marginTop = '-1em';
-			label = new THREE.CSS2DObject( div );
-			label.position.set( 0, 0, 0 );
-			refractor.add( label );
-			globallyAdd(label, new THREE.Vector3(0, 20, 0));
-
-			div = document.createElement( 'div' );
-			div.className = 'label';
-			div.textContent = 'Lame séparatrice';
-			div.style.marginTop = '-1em';
-			label = new THREE.CSS2DObject( div );
-			label.position.set( 0, 0, 0 );
-			beamSplitter.add( label );
-			globallyAdd(label, new THREE.Vector3(0, 20, 0));
-
-			div = document.createElement( 'div' );
-			div.className = 'label';
-			div.textContent = 'Détecteur de front d\'onde';
-			div.style.marginTop = '-1em';
-			label = new THREE.CSS2DObject( div );
-			label.position.set( 0, 0, 0 );
-			wavefrontSensor.add( label );
-			globallyAdd(label, new THREE.Vector3(0, 20, 0));
-
-			if(!options.renderLabels) {
-				labelLines.forEach(function(line) {
-					hide(line);
-				});
-			}
+			addLabelForObject('Objet', object);
+			addLabelForObject('Observateur', observer);
+			addLabelForObject('Miroir', mirror);
+			addLabelForObject('Perturbation', refractor);
+			addLabelForObject('Lame séparatrice', beamSplitter);
+			addLabelForObject('Détecteur de front d\'onde', wavefrontSensor);
+			addLabelForObject('PC de contrôle', controlPc);
 
 			// opical path
 
@@ -738,8 +658,8 @@
 
 			generalGui.add(options, 'perturbationFrequency', 0.0, 1.0).step(0.1).listen();
 
-			generalGui.add(options, 'currentSlide', 1, Object.keys(slides).length).step(1).onChange(function(value) {
-				moveToSlide(slides[value]);
+			generalGui.add(options, 'currentSlide', 1, slideCount).step(1).onChange(function(value) {
+				moveToSlide(value);
 				document.getElementById('slide_info').innerHTML = currentSlide.toString()+'/test';
 			}).listen();
 
@@ -783,24 +703,70 @@
 			setVisible(object, false);
 		}
 
+
+
+		function plugInformationCablesToObject(object) {
+
+			var space = wavefrontSensor.position.clone().sub(mirror.position);
+			space.multiplyScalar(0.5);
+
+			informationPath = new THREE.CatmullRomCurve3 ( [
+					wavefrontSensor.position.clone(),
+					object.position.clone().add(space),
+					object.position.clone(),
+					object.position.clone().sub(space),
+					mirror.position.clone()
+				],
+				false,
+				'centripetal',
+				0
+			);
+
+			var geometry = new THREE.TubeBufferGeometry( informationPath, 50, 1, 8, false );
+			var material = new THREE.MeshBasicMaterial( { color: 0x555555 } );
+
+			scene.remove(informationCables);
+
+			informationCables = new THREE.Mesh( geometry, material );
+			scene.add( informationCables );
+		}
+
+		function setSlideTitle(slideNumber, title) {
+			var title = title;
+			title += " (" + slideNumber.toString()+"/"+slideCount.toString() + ")";
+			document.getElementById('slide_info').innerHTML = title;
+		}
+
+		function addLabelForObject(labelText, element) {
+			var div = document.createElement( 'div' );
+			div.className = 'label';
+			div.textContent = labelText;
+			div.style.marginTop = '-1em';
+			var label = new THREE.CSS2DObject( div );
+			element.add( label );
+			globallyAdd(label, new THREE.Vector3(0, 10, 0));
+
+			labels.push(label);
+		}
+
 		function globallyAdd(object, point) {
 			var position = new THREE.Vector3();
 			object.parent.getWorldPosition(position);
 			position.add(point);
 
-			var line;
-
-			material = new THREE.LineBasicMaterial( { color: 0xB3232D } );
-			geometry = new THREE.Geometry();
-
-			geometry.vertices.push(position.clone());
-			geometry.vertices[0].y -= 5;
-			geometry.vertices.push(position.clone());
-
-			line = new THREE.Line( geometry, material );
-			scene.add( line );
-
-			labelLines.push(line);
+			// var line;
+			//
+			// material = new THREE.LineBasicMaterial( { color: 0xB3232D } );
+			// geometry = new THREE.Geometry();
+			//
+			// geometry.vertices.push(position.clone());
+			// geometry.vertices[0].y -= 5;
+			// geometry.vertices.push(position.clone());
+			//
+			// line = new THREE.Line( geometry, material );
+			// scene.add( line );
+			//
+			// labelLines.push(line);
 
 			object.parent.worldToLocal( position );
 			object.position.copy(position);
@@ -818,41 +784,49 @@
 			camera.aspect = window.innerWidth / window.innerHeight;
 			camera.updateProjectionMatrix();
 			renderer.setSize( window.innerWidth, window.innerHeight );
+			labelRenderer.setSize( window.innerWidth, window.innerHeight );
 
 		}
 
 		function moveToSlide(slide) {
 			switch (slide) {
-				case Slide.OVERVIEW_1:
+				case 1:
+					setSlideTitle(slide, "Vue générale");
+
+					[mirror, beamSplitter, wavefrontSensor, opticalPath.line,
+						opticalPath.ray, controlPc, computePc, informationCables
+					].forEach(function(element) {
+						hide(element);
+					});
+
+					labels.forEach(function(element) {
+						scene.remove(element);
+					});
+
+					controllers['perturbationOn'].setValue(false);
+					controllers['wavefrontSensorOn'].setValue(false);
+
+					options.MoveCamera0();
+					break;
+				case 2:
+					setSlideTitle(slide, "Vue de l'objet")
 					hide(mirror);
 					hide(beamSplitter);
 					hide(wavefrontSensor);
 					hide(opticalPath.line);
+					hide(opticalPath.ray);
 					hide(controlPc);
 					hide(computePc);
 					hide(informationCables);
 
 					controllers['perturbationOn'].setValue(false);
-
-					options.MoveCamera0();
-					break;
-				case Slide.LOOK_AT_OBJECT_1:
-					hide(mirror);
-					hide(beamSplitter);
-					hide(wavefrontSensor);
-					hide(opticalPath.line);
-					hide(controlPc);
-					hide(computePc);
-					hide(informationCables);
-
-					// controllers['perturbationOn'].setValue(true);
+					controllers['wavefrontSensorOn'].setValue(false);
 
 					options.MoveCamera0();
 
 					break;
-				case Slide.SYSTEM_1:
-					camera.position.set(32, 131, 72);
-					camera.rotation.set(-1.13, 0.22, 0.43);
+				case 3:
+					setSlideTitle(slide, "Vue de l'objet avec perturbations")
 					show(mirror);
 					show(beamSplitter);
 					show(wavefrontSensor);
@@ -862,28 +836,33 @@
 					moveCablesToObject(controlPc)
 					show(informationCables);
 
-					controllers['perturbationOn'].setValue(false);
+					controllers['perturbationOn'].setValue(true);
+					controllers['wavefrontSensorOn'].setValue(false);
+
+					options.MoveCamera0();
 
 					break;
 					break;
-				case Slide.SYSTEM_2:
+				case 4:
+					setSlideTitle(slide, "Miroir déformable")
 					camera.position.set(32, 131, 72);
 					camera.rotation.set(-1.13, 0.22, 0.43);
 
 					show(mirror);
-					show(beamSplitter);
+					hide(beamSplitter);
 					show(wavefrontSensor);
 					show(opticalPath.line);
+					show(opticalPath.ray);
 					show(controlPc);
 					hide(computePc);
 					moveCablesToObject(controlPc)
 					show(informationCables);
 
-					controllers['generateWavefronts'].setValue(true);
 
 					break;
 					break;
-				case Slide.SYSTEM_3:
+				case 5:
+					setSlideTitle(slide, "Vu à travers le Miroir déformable")
 					camera.position.set(32, 131, 72);
 					camera.rotation.set(-1.13, 0.22, 0.43);
 					show(mirror);
@@ -898,7 +877,7 @@
 					controllers['generateWavefronts'].setValue(false);
 
 					break;
-				case Slide.SYSTEM_4:
+				case 6:
 					camera.position.set(32, 131, 72);
 					camera.rotation.set(-1.13, 0.22, 0.43);
 					show(mirror);
@@ -1014,12 +993,12 @@
 			}
 
 			startCameraPosition.copy(camera.position.clone());
-			startCameraRotation.copy(camera.rotation.clone());
+			// startCameraRotation.copy(camera.rotation.clone());
 
 			endCameraPosition.copy(position.clone());
-			endCameraRotation.copy(rotation.clone());
+			// endCameraRotation.copy(rotation.clone());
 
-			camera.rotation.copy(rotation.clone());
+			// camera.rotation.copy(rotation.clone());
 
 			cameraDistance = 0.;
 		}
