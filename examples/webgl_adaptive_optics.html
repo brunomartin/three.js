@@ -118,7 +118,6 @@
 		var objectPositionZ = -300;
 
 		var lastCameraPosition;
-		var secondRefractor;
 
 		var mirrorRefractor;
 		var mirrorCamera;
@@ -145,6 +144,17 @@
 		var computing = false;
 		var hasComputed = false;
 		var computationStartTime;
+
+
+		var startCameraPosition = new THREE.Vector3();
+		var startCameraRotation = new THREE.Vector3();
+
+		var endCameraPosition = new THREE.Vector3();
+		var endCameraRotation = new THREE.Vector3();
+
+		var cameraDistance = 1;
+
+		var cameraTransition = true;
 
 		const Slide = {
 		 OVERVIEW_1: 'Vue d\'ensemble',
@@ -240,8 +250,10 @@
 			MoveCamera0 : function () {
 				var object = mirror;
 
-				camera.position.set(97, 116, 172);
-				camera.rotation.set(-0.59, 0.44, 0.28);
+				var position = new THREE.Vector3(97, 116, 172);
+				var rotation = new THREE.Vector3(-0.59, 0.44, 0.28);
+
+				moveCameraTo(position, rotation);
 
 				controls.target = object.position;
 				controls.update();
@@ -250,8 +262,10 @@
 			MoveCamera1 : function () {
 				var object = mirror;
 
-				camera.position.set(42, 0, -40);
-				camera.rotation.set(3.13, 0.8, -3.14);
+				var position = new THREE.Vector3(97, 116, 172);
+				var rotation = new THREE.Vector3(-0.59, 0.44, 0.28);
+
+				moveCameraTo(position, rotation);
 
 				controls.target = object.position;
 				controls.update();
@@ -259,28 +273,29 @@
 			MoveCamera2 : function () {
 				var object = mirror;
 
-				camera.lookAt(object.position);
-				camera.position.set(5, 134, -54);
-				camera.rotation.set(1.58, 0.02, -2.16);
+				var position = new THREE.Vector3(5, 134, -54);
+				var rotation = new THREE.Vector3(1.58, 0.02, -2.16);
 
-				controls.target = object.position;
-				controls.update();
+				moveCameraTo(position, rotation);
 			},
 			MoveCamera3 : function () {
-				var object = refractor;
+				var object = scene;
 
-				camera.lookAt(object.position);
-				camera.position.set(7, 102, 4);
-				camera.rotation.set(1.58, 0.02, 1.06);
+				moveCameraTo(
+					new THREE.Vector3(35, 57, 128),
+					new THREE.Vector3(1.58, 0.02, -2.16)
+				);
 
 				controls.target = object.position;
 				controls.update();
 			},
 			MoveCamera4 : function () {
-				var object = mirror;
+				var object = scene;
 
-				camera.position.set(0, 91, 0);
-				camera.rotation.set(-1.57, 0, 0.69);
+				moveCameraTo(
+					new THREE.Vector3(182, 433, -2),
+					new THREE.Vector3(1.58, 0.02, -2.16)
+				);
 
 				controls.target = object.position;
 				controls.update();
@@ -371,37 +386,16 @@
 				shader: THREE.HeatRefractionExShader
 			} );
 
-			refractor.position.set( 0, 0, objectPositionZ + 20 );
+			refractor.position.set( 0, 0, objectPositionZ/2 );
 			scene.add( refractor );
 
-			addBorders(refractor);
+			// addBorders(refractor);
 
 			refractor.material.uniforms[ "waveAmp" ].value = options.waveAmp;
 			refractor.material.uniforms[ "waveLength" ].value = options.waveLength;
 			refractor.material.uniforms[ "waveSpeed" ].value = options.waveSpeed;
 
 			setVisible(refractor, options.perturbationOn);
-			// setVisible(reverseRefractor, options.perturbationOn);
-
-			secondRefractor = new THREE.Refractor( refractorGeometry.clone(), {
-				// color: 0x999999,
-				// color: 0x888888,
-				textureWidth: 4096,
-				textureHeight: 4096,
-				shader: THREE.HeatRefractionExShader
-			} );
-
-			// secondRefractor.material.uniforms[ "tDudv" ].value = dudvMap;
-			secondRefractor.material.uniforms[ "waveAmp" ].value = options.waveAmp;
-			secondRefractor.material.uniforms[ "waveLength" ].value = options.waveLength;
-			secondRefractor.material.uniforms[ "waveSpeed" ].value = options.waveSpeed;
-
-			secondRefractor.rotateZ( - Math.PI / 2 );
-			secondRefractor.position.set( 0, 0, objectPositionZ + 20 - 0.1 );
-			scene.add( secondRefractor );
-
-
-			setVisible(secondRefractor, options.perturbationOn);
 
 			mirror = new THREE.DeformableMirror();
 			mirror.position.set( 0, 0, 0 );
@@ -701,7 +695,6 @@
 			}).listen();
 			controllers['perturbationOn'] = generalGui.add(options, 'perturbationOn').onChange(function(on) {
 				setVisible(refractor, on);
-				setVisible(secondRefractor, on);
 			}).listen();
 
 			generalGui.add(options, 'waveAmp', 0, 10).step(0.1).onChange(function(value) {
@@ -1006,6 +999,52 @@
 			opticalPath.copyColorAfter(color, 2);
 		}
 
+		function moveCameraTo(position, rotation) {
+
+			if(!cameraTransition) {
+				camera.position.copy(position);
+				camera.rotation.copy(rotation);
+				controls.update();
+				return;
+			}
+
+			var distance = camera.position.distanceTo(position);
+			if(distance < 0.1) {
+				return;
+			}
+
+			startCameraPosition.copy(camera.position.clone());
+			startCameraRotation.copy(camera.rotation.clone());
+
+			endCameraPosition.copy(position.clone());
+			endCameraRotation.copy(rotation.clone());
+
+			camera.rotation.copy(rotation.clone());
+
+			cameraDistance = 0.;
+		}
+
+		function animateCamera(deltaClock) {
+
+			var controlPoint = startCameraPosition.clone().add(endCameraPosition);
+
+			var curve = new THREE.QuadraticBezierCurve3(
+				startCameraPosition.clone(),
+				controlPoint.clone(),
+				endCameraPosition.clone()
+			);
+
+			cameraDistance += deltaClock;
+
+			if(cameraDistance > 1.) {
+				cameraDistance = 1.;
+			}
+
+			camera.position.copy(curve.getPoint(cameraDistance));
+			controls.update();
+		}
+
+
 		function animate() {
 				setTimeout( function() {
 	        requestAnimationFrame( animate );
@@ -1014,7 +1053,6 @@
 			var deltaClock = clock.getDelta();
 
 			refractor.material.uniforms[ "time" ].value += 10*deltaClock;
-			secondRefractor.material.uniforms[ "time" ].value += 10*deltaClock;
 			mirror.refractor.material.uniforms[ "time" ].value += 10*deltaClock;
 
 			var now = Date.now();
@@ -1065,6 +1103,10 @@
 					wavefrontSensor.lastAcquisitionTime = clock.elapsedTime;
 					generateInformation();
 				}
+			}
+
+			if(cameraDistance < 1.) {
+				animateCamera(deltaClock);
 			}
 
 			render();
