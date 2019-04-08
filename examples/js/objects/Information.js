@@ -43,7 +43,7 @@ THREE.Information = function (perturbation) {
         self.hasComputed = true;
         self.computing = false;
       }
-    } else if(!self.hasComputed && self.distance > 0.5) {
+    } else if(!self.hasComputed && self.distance > 0.475) {
       self.computationStartTime = self.time;
       self.computing = true;
     } else if(self.distance > 0.95) {

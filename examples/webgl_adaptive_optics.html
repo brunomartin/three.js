@@ -39,12 +39,12 @@
 
 			#slide_info {
 				position: absolute;
-				bottom: 0px;
+				bottom: 10px;
 				width: 100%;
 				color: #000000;
 				padding: 5px;
 				font-family:Monospace;
-				font-size:13px;
+				font-size:20px;
 				text-align:center;
 				z-index: 1000;
 			}
@@ -158,7 +158,7 @@
 
 		var cameraTransition = true;
 
-		var slideCount = 10;
+		var slideCount = 11;
 		var currentSlide = 0;
 
 		var url_string = window.location.href; //window.location.href
@@ -171,6 +171,8 @@
 		var textureLoader = new THREE.TextureLoader();
 
 		var controlSystem = [];
+
+		var lastPerturbationTime = 0;
 
 		if(showOn) {
 			document.onkeydown = function(e) {
@@ -201,6 +203,8 @@
 
 		var labelLines = [];
 
+		var observerPosition = new THREE.Vector3(0, 0, 100);
+
 		var mirrorAngle = 10 / 180 * Math.PI;
 		mirrorAngle = 3 * Math.PI / 8;
 		mirrorAngle = Math.PI / 4;
@@ -227,6 +231,7 @@
 			acquisitionRate: 0.5,
 			transfertSpeed: 1,
 			computeTime: 1.0,
+			animatePerturbation: false,
 
 			perturbationAmp: 0.5,
 			perturbationFrequency: 0.0,
@@ -288,11 +293,24 @@
 				controls.target = object.position;
 				controls.update();
 			},
+			MoveCameraObserver : function () {
+				var object = mirror;
+
+				moveCameraTo(
+					// new THREE.Vector3(0, 0, 50),
+					observer.position.clone(),
+					new THREE.Vector3(1.58, 0.02, -2.16)
+				);
+
+				controls.target = object.position;
+				controls.update();
+			},
 			MoveCameraObjectTroughMirror : function () {
 				var object = mirror;
 
 				moveCameraTo(
-					new THREE.Vector3(100, 0, -100),
+					// new THREE.Vector3(60, 0, -60),
+					observer.position.clone(),
 					new THREE.Vector3(1.58, 0.02, -2.16)
 				);
 
@@ -404,10 +422,12 @@
 
 			// Observer
 
-			var spriteMap = new THREE.TextureLoader().load( 'textures/sprite.png' );
+			var spriteMap = new THREE.TextureLoader().load( 'textures/bma.png' );
 			var spriteMaterial = new THREE.SpriteMaterial( { map: spriteMap, color: 0xffffff } );
 			observer = new THREE.Sprite( spriteMaterial );
-			observer.scale.set(10, 10, 1)
+			observer.scale.set(10, 10, 1);
+
+			observer.position.copy(observerPosition);
 
 			scene.add( observer );
 
@@ -683,6 +703,8 @@
 				updateOpticalPathPerturbation();
 			}).listen();
 
+			controllers['animatePerturbation'] = generalGui.add(options, 'animatePerturbation').listen();
+
 			generalGui.add(options, 'perturbationFrequency', 0.0, 1.0).step(0.1).listen();
 
 			generalGui.add(options, 'currentSlide', 1, slideCount).step(1).onChange(function(value) {
@@ -832,6 +854,11 @@
 						element.object.remove(element.label);
 					});
 
+					[observer, refractor, object
+					].forEach(function(element) {
+						show(element);
+					});
+
 					addLabelForObject('Observateur', observer);
 					addLabelForObject('Perturbation', refractor);
 					addLabelForObject('Object', object);
@@ -854,30 +881,7 @@
 						hide(element);
 					});
 
-					labels.forEach(function(element) {
-						element.object.remove(element.label);
-					});
-
-					if(controllers['renderLabels'].getValue() == true) {
-						controllers['renderLabels'].setValue(false);
-					}
-
-					controllers['perturbationOn'].setValue(true);
-					controllers['wavefrontSensorOn'].setValue(false);
-
-					options.MoveCamera1();
-
-					break;
-				case 3:
-					setSlideTitle(slide, "Miroir déformable");
-
-					[observer, beamSplitter, wavefrontSensor, opticalPath.line,
-						opticalPath.ray, controlPc, computePc, informationCables
-					].forEach(function(element) {
-						hide(element);
-					});
-
-					[mirror
+					[observer, refractor, object
 					].forEach(function(element) {
 						show(element);
 					});
@@ -886,6 +890,40 @@
 						element.object.remove(element.label);
 					});
 
+					observer.position.copy(observerPosition.clone());
+
+					if(controllers['renderLabels'].getValue() == true) {
+						controllers['renderLabels'].setValue(false);
+					}
+
+					controllers['perturbationOn'].setValue(true);
+					controllers['wavefrontSensorOn'].setValue(false);
+
+					options.MoveCameraObserver();
+					// options.MoveCamera1();
+
+					break;
+				case 3:
+					setSlideTitle(slide, "Miroir déformable");
+
+					[beamSplitter, wavefrontSensor, opticalPath.line,
+						opticalPath.ray, controlPc, computePc, informationCables
+					].forEach(function(element) {
+						hide(element);
+					});
+
+					[observer, mirror
+					].forEach(function(element) {
+						show(element);
+					});
+
+					observer.position.copy(beamSplitter.position.clone().sub(mirror.position).multiplyScalar(3));
+
+					labels.forEach(function(element) {
+						element.object.remove(element.label);
+					});
+
+					addLabelForObject('Observateur', observer);
 					addLabelForObject('Mirroir', mirror);
 					addLabelForObject('Perturbation', refractor);
 					addLabelForObject('Object', object);
@@ -903,13 +941,13 @@
 				case 4:
 					setSlideTitle(slide, "Vu à travers le Miroir déformable");
 
-					[observer, beamSplitter, wavefrontSensor, opticalPath.line,
+					[beamSplitter, wavefrontSensor, opticalPath.line,
 						opticalPath.ray, controlPc, computePc, informationCables
 					].forEach(function(element) {
 						hide(element);
 					});
 
-					[mirror
+					[observer, mirror
 					].forEach(function(element) {
 						show(element);
 					});
@@ -919,6 +957,9 @@
 					if(controllers['renderLabels'].getValue() == true) {
 						controllers['renderLabels'].setValue(false);
 					}
+
+					controllers['perturbationOn'].setValue(true);
+					controllers['wavefrontSensorOn'].setValue(false);
 
 					break;
 				case 5:
@@ -951,7 +992,7 @@
 						hide(element);
 					});
 
-					[beamSplitter, wavefrontSensor, opticalPath.line,
+					[observer, beamSplitter, wavefrontSensor, opticalPath.line,
 						controlPc, informationCables
 					].forEach(function(element) {
 						show(element);
@@ -992,17 +1033,22 @@
 						element.object.remove(element.label);
 					});
 
+					informations.forEach(function(element) {
+						hide(element);
+					});
+
 					if(controllers['renderLabels'].getValue() == false) {
 						controllers['renderLabels'].setValue(true);
 					}
 
+					controllers['perturbation'].setValue(1.0);
 					controllers['wavefrontSensorOn'].setValue(false);
 
 					options.MoveCameraSystem();
 
 					break;
 				case 8:
-					setSlideTitle(slide, "Système de contrôle du front d'onde : ACE");
+					setSlideTitle(slide, "Système de contrôle du front d'onde : ACE, Correction");
 					[ computePc
 					].forEach(function(element) {
 						hide(element);
@@ -1024,25 +1070,32 @@
 
 					plugInformationCablesToObject(controlPc);
 
-					controllers['acquisitionRate'].setValue(0.5);
-					controllers['computeTime'].setValue(1);
-					controllers['transfertSpeed'].setValue(1);
+					informations.forEach(function(element) {
+						hide(element);
+					});
 
+					controllers['acquisitionRate'].setValue(1.0);
+					controllers['computeTime'].setValue(0.5);
+					controllers['transfertSpeed'].setValue(2.0);
+
+					controllers['perturbation'].setValue(1.0);
 					mirror.correction = 0.;
 					controllers['wavefrontSensorOn'].setValue(true);
+					controllers['animatePerturbation'].setValue(false);
 
 					options.MoveCameraSystem();
 
 					break;
+					break;
 				case 9:
-					setSlideTitle(slide, "Système de contrôle du front d'onde : ACEfast");
-					[
+					setSlideTitle(slide, "Système de contrôle du front d'onde : ACE, Correction dynamique");
+					[ computePc
 					].forEach(function(element) {
 						hide(element);
 					});
 
 					[beamSplitter, wavefrontSensor, opticalPath.line,
-						controlPc, informationCables, opticalPath.ray, computePc
+						controlPc, informationCables, opticalPath.ray
 					].forEach(function(element) {
 						show(element);
 					});
@@ -1051,18 +1104,19 @@
 						element.object.remove(element.label);
 					});
 
-					plugInformationCablesToObject(computePc);
-
-					controllers['acquisitionRate'].setValue(10);
-					controllers['computeTime'].setValue(0);
-					controllers['transfertSpeed'].setValue(10);
-
 					if(controllers['renderLabels'].getValue() == false) {
 						controllers['renderLabels'].setValue(true);
 					}
 
+					plugInformationCablesToObject(controlPc);
+
+					informations.forEach(function(element) {
+						hide(element);
+					});
+
 					mirror.correction = 0.;
-					controllers['wavefrontSensorOn'].setValue(false);
+					controllers['wavefrontSensorOn'].setValue(true);
+					controllers['animatePerturbation'].setValue(true);
 
 					options.MoveCameraSystem();
 
@@ -1086,6 +1140,48 @@
 
 					plugInformationCablesToObject(computePc);
 
+					informations.forEach(function(element) {
+						hide(element);
+					});
+
+					controllers['acquisitionRate'].setValue(10);
+					controllers['computeTime'].setValue(0);
+					controllers['transfertSpeed'].setValue(10);
+
+					if(controllers['renderLabels'].getValue() == false) {
+						controllers['renderLabels'].setValue(true);
+					}
+
+					mirror.correction = 0.;
+					controllers['wavefrontSensorOn'].setValue(false);
+					controllers['animatePerturbation'].setValue(true);
+
+					options.MoveCameraSystem();
+
+					break;
+				case 11:
+					setSlideTitle(slide, "Système de contrôle du front d'onde : ACEfast, Correction");
+					[
+					].forEach(function(element) {
+						hide(element);
+					});
+
+					[beamSplitter, wavefrontSensor, opticalPath.line,
+						controlPc, informationCables, opticalPath.ray, computePc
+					].forEach(function(element) {
+						show(element);
+					});
+
+					labels.forEach(function(element) {
+						element.object.remove(element.label);
+					});
+
+					informations.forEach(function(element) {
+						hide(element);
+					});
+
+					plugInformationCablesToObject(computePc);
+
 					controllers['acquisitionRate'].setValue(5);
 					controllers['computeTime'].setValue(0);
 					controllers['transfertSpeed'].setValue(5);
@@ -1096,6 +1192,7 @@
 
 					mirror.correction = 0.;
 					controllers['wavefrontSensorOn'].setValue(true);
+					controllers['animatePerturbation'].setValue(true);
 
 					options.MoveCameraSystem();
 
@@ -1180,6 +1277,8 @@
 			var color = perturbatedColor.clone().multiplyScalar(mirror.correction);
 			color.add(correctedColor.clone().multiplyScalar(1-mirror.correction));
 			mirror.indicatorColor.copy( color );
+
+			perturbation = Math.abs(perturbation);
 
 			var color = perturbatedColor.clone().multiplyScalar(perturbation);
 			color.add(correctedColor.clone().multiplyScalar(1-perturbation));
@@ -1296,6 +1395,11 @@
 				animateCamera(deltaClock);
 			}
 
+			if(options.animatePerturbation && now > lastPerturbationTime + 2000) {
+				opticalPath.perturbations[1] = Math.random();
+				lastPerturbationTime = now;
+			}
+
 			render();
 		}
 
@@ -1336,6 +1440,15 @@
 
 			live_info.innerHTML += "mirror.correction : ";
 			live_info.innerHTML += mirror.correction.toString();
+
+			live_info.innerHTML += "\n\r</br>";
+
+			live_info.innerHTML += "optivalPath.rayColors[3] : ";
+			live_info.innerHTML += "(";
+			live_info.innerHTML += opticalPath.rayColors[3].r.toString() + ", ";
+			live_info.innerHTML += opticalPath.rayColors[3].g.toString() + ", ";
+			live_info.innerHTML += opticalPath.rayColors[3].b.toString();
+			live_info.innerHTML += ")";
 
 			// renderer.clearDepth();
 			//
