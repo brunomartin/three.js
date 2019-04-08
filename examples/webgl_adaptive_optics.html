@@ -939,7 +939,7 @@
 
 					break;
 				case 4:
-					setSlideTitle(slide, "Vu à travers le Miroir déformable");
+					setSlideTitle(slide, "Vue à travers le Miroir déformable : déformation du front d'onde");
 
 					[beamSplitter, wavefrontSensor, opticalPath.line,
 						opticalPath.ray, controlPc, computePc, informationCables
@@ -986,7 +986,7 @@
 
 					break;
 				case 6:
-					setSlideTitle(slide, "Système de contrôle du front d'onde : ACE");
+					setSlideTitle(slide, "Système de contrôle du front d'onde, ACE");
 					[ opticalPath.ray, computePc
 					].forEach(function(element) {
 						hide(element);
@@ -1017,7 +1017,7 @@
 
 					break;
 				case 7:
-					setSlideTitle(slide, "Système de contrôle du front d'onde : ACE");
+					setSlideTitle(slide, "Système de contrôle du front d'onde, ACE");
 					[ computePc
 					].forEach(function(element) {
 						hide(element);
@@ -1048,7 +1048,7 @@
 
 					break;
 				case 8:
-					setSlideTitle(slide, "Système de contrôle du front d'onde : ACE, Correction");
+					setSlideTitle(slide, "Système de contrôle du front d'onde, ACE, Correction");
 					[ computePc
 					].forEach(function(element) {
 						hide(element);
@@ -1088,7 +1088,7 @@
 					break;
 					break;
 				case 9:
-					setSlideTitle(slide, "Système de contrôle du front d'onde : ACE, Correction dynamique");
+					setSlideTitle(slide, "Système de contrôle du front d'onde, ACE, Correction dynamique");
 					[ computePc
 					].forEach(function(element) {
 						hide(element);
@@ -1114,6 +1114,11 @@
 						hide(element);
 					});
 
+					controllers['acquisitionRate'].setValue(1.0);
+					controllers['computeTime'].setValue(0.5);
+					controllers['transfertSpeed'].setValue(2.0);
+
+					controllers['perturbation'].setValue(1.0);
 					mirror.correction = 0.;
 					controllers['wavefrontSensorOn'].setValue(true);
 					controllers['animatePerturbation'].setValue(true);
@@ -1122,7 +1127,7 @@
 
 					break;
 				case 10:
-					setSlideTitle(slide, "Système de contrôle du front d'onde : ACEfast");
+					setSlideTitle(slide, "Système de contrôle du front d'onde, ACEfast");
 					[
 					].forEach(function(element) {
 						hide(element);
@@ -1137,6 +1142,13 @@
 					labels.forEach(function(element) {
 						element.object.remove(element.label);
 					});
+
+					addLabelForObject('Pc de contrôle', controlPc);
+					addLabelForObject('Server de calcul, RTC', computePc);
+
+					if(controllers['renderLabels'].getValue() == false) {
+						controllers['renderLabels'].setValue(true);
+					}
 
 					plugInformationCablesToObject(computePc);
 
@@ -1160,7 +1172,7 @@
 
 					break;
 				case 11:
-					setSlideTitle(slide, "Système de contrôle du front d'onde : ACEfast, Correction");
+					setSlideTitle(slide, "Système de contrôle du front d'onde, ACEfast, Correction");
 					[
 					].forEach(function(element) {
 						hide(element);
