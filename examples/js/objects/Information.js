@@ -23,6 +23,14 @@ THREE.Information = function (perturbation) {
   var geometry = new THREE.SphereBufferGeometry(3);
   var material = new THREE.MeshBasicMaterial( { color: 0x6083c2 } );
 
+	var perturbatedColor = new THREE.Color(1, 0, 0);
+	var correctedColor = new THREE.Color(1, 1, 1);
+
+  var color = perturbatedColor.clone().multiplyScalar(perturbation);
+  color.add(correctedColor.clone().multiplyScalar(1-perturbation));
+
+  material.color.copy(color);
+
   THREE.Mesh.call( this, geometry, material );
 
   this.path = null;

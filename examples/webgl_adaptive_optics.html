@@ -1198,13 +1198,6 @@
 			var perturbation = opticalPath.perturbations[3];
 			var information = wavefrontSensor.createInformation(perturbation);
 
-			var color = lut.getColor(information.correction);
-
-			var color = new THREE.Color(1, 0, 0).multiplyScalar(perturbation);
-			color.add(new THREE.Color(1, 1, 1).multiplyScalar(1-perturbation));
-
-			information.material.color.copy(color);
-
 			information.speed = options.transfertSpeed
 			information.computeTime = options.computeTime
 			information.setPath(informationPath);
@@ -1291,7 +1284,6 @@
 				information.updatePosition(deltaClock);
 
 				if(information.hasArrived) {
-					mirror.indicatorColor.copy( information.material.color );
 					mirror.correction -= options.gain*information.correction;
 
 					opticalPath.updatePerturbation();
