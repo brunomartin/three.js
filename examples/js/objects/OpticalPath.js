@@ -91,7 +91,7 @@ THREE.OpticalPath = function () {
 
       var pointX = self.objects[i-1].position.clone();
       var pointY = self.objects[i].position.clone();
-      
+
     }
   }
 
@@ -113,6 +113,26 @@ THREE.OpticalPath = function () {
 
   this.copyColorTo = function(color, index) {
     self.rayColors[index].copy(color);
+  }
+
+  this.updatePerturbation = function() {
+		var perturbation = self.perturbations[1];
+
+		var perturbatedColor = new THREE.Color(1, 0, 0);
+		var correctedColor = new THREE.Color(1, 1, 1);
+
+		var color = perturbatedColor.clone().multiplyScalar(perturbation);
+		color.add(correctedColor.clone().multiplyScalar(1-perturbation));
+		self.copyColorTo(color, 1);
+
+		perturbation -= mirror.correction;
+		self.setPerturbationAfter(perturbation, 2);
+
+		perturbation = Math.abs(perturbation);
+
+		var color = perturbatedColor.clone().multiplyScalar(perturbation);
+		color.add(correctedColor.clone().multiplyScalar(1-perturbation));
+		self.copyColorAfter(color, 2);
   }
 
 };

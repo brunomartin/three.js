@@ -87,6 +87,15 @@ THREE.DeformableMirror = function ( size, divisions ) {
     });
     object.visible = on;
   }
+
+  this.updateCorrection = function() {
+    var perturbatedColor = new THREE.Color(1, 0, 0);
+    var correctedColor = new THREE.Color(1, 1, 1);
+
+    var color = perturbatedColor.clone().multiplyScalar(self.correction);
+    color.add(correctedColor.clone().multiplyScalar(1-self.correction));
+		self.indicatorColor.copy( color );
+  }
 };
 
 THREE.DeformableMirror.prototype = Object.create( THREE.Group.prototype );
