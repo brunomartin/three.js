@@ -147,6 +147,9 @@
 		var hasComputed = false;
 		var computationStartTime;
 
+		var cameraPositionCurve;
+		var cameraLookAtCurve;
+		var cameraCurrentLookAt = new THREE.Vector3();
 
 		var startCameraPosition = new THREE.Vector3();
 		var startCameraRotation = new THREE.Vector3();
@@ -241,93 +244,43 @@
 			currentSlide: 1,
 
 			MoveCamera0 : function () {
-				var object = mirror;
-
-				var position = new THREE.Vector3(97, 116, 172);
-				var rotation = new THREE.Vector3(-0.59, 0.44, 0.28);
-
-				moveCameraTo(position, rotation);
-
-				controls.target = object.position;
-				controls.update();
+				var position = new THREE.Vector3(107, 116, 172);
+				moveCameraTo(position, mirror.position);
 			},
 
 			MoveCamera1 : function () {
-				var target = mirror;
-
 				var position = new THREE.Vector3(17, 24, 227);
-				var rotation = new THREE.Vector3(-0.59, 0.44, 0.28);
-
-				moveCameraTo(position, rotation);
-
-				controls.target = target.position;
-				controls.update();
+				moveCameraTo(position, mirror.position);
 			},
 			MoveCamera2 : function () {
-				var object = mirror;
-
 				var position = new THREE.Vector3(5, 134, -54);
-				var rotation = new THREE.Vector3(1.58, 0.02, -2.16);
-
-				moveCameraTo(position, rotation);
+				moveCameraTo(position, mirror.position);
 			},
 			MoveCamera3 : function () {
-				var object = scene;
-
-				moveCameraTo(
-					new THREE.Vector3(35, 57, 128),
-					new THREE.Vector3(1.58, 0.02, -2.16)
-				);
-
-				controls.target = object.position;
-				controls.update();
+				var position = new THREE.Vector3(35, 57, 128);
+				moveCameraTo(position, scene.position);
 			},
 			MoveCamera4 : function () {
-				var object = scene;
-
-				moveCameraTo(
-					new THREE.Vector3(182, 433, -2),
-					new THREE.Vector3(1.58, 0.02, -2.16)
-				);
-
-				controls.target = object.position;
-				controls.update();
+				var position = new THREE.Vector3(182, 433, -2);
+				moveCameraTo(position, scene.position);
 			},
+
+			MoveCameraOverView : function () {
+				var position = new THREE.Vector3(107, 116, 172);
+				moveCameraTo(position, mirror.position);
+			},
+
 			MoveCameraObserver : function () {
-				var object = mirror;
-
-				moveCameraTo(
-					// new THREE.Vector3(0, 0, 50),
-					observer.position.clone(),
-					new THREE.Vector3(1.58, 0.02, -2.16)
-				);
-
-				controls.target = object.position;
-				controls.update();
+				var position = observer.position.clone();
+				moveCameraTo(observer.position.clone(), object.position);
 			},
+
 			MoveCameraObjectTroughMirror : function () {
-				var object = mirror;
-
-				moveCameraTo(
-					// new THREE.Vector3(60, 0, -60),
-					observer.position.clone(),
-					new THREE.Vector3(1.58, 0.02, -2.16)
-				);
-
-				controls.target = object.position;
-				controls.update();
+				moveCameraTo(observer.position.clone(), mirror.position);
 			},
+
 			MoveCameraSystem : function () {
-				var object = mirror;
-
-				moveCameraTo(
-					// new THREE.Vector3(32, 131, 72),
-					new THREE.Vector3(-24, 131, 75),
-					new THREE.Vector3(-1.13, 0.22, 0.43)
-				);
-
-				controls.target = object.position;
-				controls.update();
+				moveCameraTo(new THREE.Vector3(-24, 131, 75), mirror.position);
 			}
 		}
 
@@ -388,8 +341,11 @@
 			camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 5000 );
 			camera.position.set( - 10, 0, 35 );
 			camera.position.set( 0, 0, -30 );
+			camera.position.set( 200, 200, 200 );
 			// camera.position.set( -10, 0, 0 );
+			// camera.up = new THREE.Vector3(0,1,0);
 			camera.lookAt( scene.position );
+			cameraCurrentLookAt.copy(scene.position);
 
 			// mirrorCamera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 1000 );
 			// mirrorCamera.position.set( -20, 0, -30 );
@@ -647,13 +603,13 @@
 			controllers['renderLabels'] = generalGui.add(options, 'renderLabels').onChange(function(on) {
 				if(on) {
 					document.body.appendChild( labelRenderer.domElement );
-					controls.domElement = labelRenderer.domElement;
+					if(!showOn) controls.domElement = labelRenderer.domElement;
 					labelLines.forEach(function(line) {
 						show(line);
 					});
 				} else {
 					document.body.removeChild( labelRenderer.domElement );
-					controls.domElement = renderer.domElement;
+					if(!showOn) controls.domElement = renderer.domElement;
 					labelLines.forEach(function(line) {
 						hide(line);
 					});
@@ -717,6 +673,7 @@
 			generalGui.add(options, 'MoveCamera2').listen();
 			generalGui.add(options, 'MoveCamera3').listen();
 			generalGui.add(options, 'MoveCamera4').listen();
+			generalGui.add(options, 'MoveCameraOverView').listen();
 			generalGui.add(options, 'MoveCameraObjectTroughMirror').listen();
 			generalGui.add(options, 'MoveCameraSystem').listen();
 
@@ -734,7 +691,11 @@
 
 			// control
 
-			controls = new THREE.OrbitControls( camera, renderer.domElement );
+			if(!showOn) {
+				controls = new THREE.OrbitControls( camera, renderer.domElement );
+			}
+
+			camera.lookAt( mirror.position );
 		}
 
 		function setVisible(object, visible) {
@@ -870,7 +831,7 @@
 					controllers['perturbationOn'].setValue(false);
 					controllers['wavefrontSensorOn'].setValue(false);
 
-					options.MoveCamera0();
+					options.MoveCameraOverView();
 					break;
 				case 2:
 					setSlideTitle(slide, "Vue de l'objet à travers la perturbation");
@@ -935,7 +896,7 @@
 					controllers['perturbationOn'].setValue(true);
 					controllers['wavefrontSensorOn'].setValue(false);
 
-					options.MoveCamera0();
+					options.MoveCameraOverView();
 
 					break;
 				case 4:
@@ -1297,12 +1258,12 @@
 			opticalPath.copyColorAfter(color, 2);
 		}
 
-		function moveCameraTo(position, rotation) {
+		function moveCameraTo(position, lookAtPosition) {
 
 			if(!cameraTransition) {
 				camera.position.copy(position);
-				camera.rotation.copy(rotation);
-				controls.update();
+				if(!showOn) controls.update();
+				camera.lookAt(lookAtPosition);
 				return;
 			}
 
@@ -1312,25 +1273,28 @@
 			}
 
 			startCameraPosition.copy(camera.position.clone());
-			// startCameraRotation.copy(camera.rotation.clone());
-
 			endCameraPosition.copy(position.clone());
-			// endCameraRotation.copy(rotation.clone());
 
-			// camera.rotation.copy(rotation.clone());
+			var controlPoint = startCameraPosition.clone().add(endCameraPosition);
+			controlPoint.multiplyScalar(2);
+
+			controlPoint = endCameraPosition.clone();
+			controlPoint.multiplyScalar(2);
+			cameraPositionCurve = new THREE.QuadraticBezierCurve3(
+				startCameraPosition.clone(),
+				controlPoint.clone(),
+				endCameraPosition.clone()
+			);
+
+			cameraLookAtCurve = new THREE.Line3(
+				cameraCurrentLookAt.clone(),
+				lookAtPosition.clone()
+			);
 
 			cameraDistance = 0.;
 		}
 
 		function animateCamera(deltaClock) {
-
-			var controlPoint = startCameraPosition.clone().add(endCameraPosition);
-
-			var curve = new THREE.QuadraticBezierCurve3(
-				startCameraPosition.clone(),
-				controlPoint.clone(),
-				endCameraPosition.clone()
-			);
 
 			cameraDistance += deltaClock;
 
@@ -1338,8 +1302,13 @@
 				cameraDistance = 1.;
 			}
 
-			camera.position.copy(curve.getPoint(cameraDistance));
-			controls.update();
+			camera.position.copy(cameraPositionCurve.getPoint(cameraDistance));
+
+			cameraLookAtCurve.at(cameraDistance, cameraCurrentLookAt);
+
+			camera.lookAt(cameraCurrentLookAt);
+
+			if(!showOn) controls.update();
 		}
 
 
@@ -1432,13 +1401,6 @@
 				camera_info.innerHTML += Math.round(camera.position.x);
 				camera_info.innerHTML += ", " + Math.round(camera.position.y);
 				camera_info.innerHTML += ", " + Math.round(camera.position.z) + ");";
-
-				camera_info.innerHTML += "\n\r</br>";
-
-				camera_info.innerHTML += "camera.rotation.set(";
-				camera_info.innerHTML += Math.round(camera.rotation.x*100)/100;
-				camera_info.innerHTML += ", " + Math.round(camera.rotation.y*100)/100;
-				camera_info.innerHTML += ", " + Math.round(camera.rotation.z*100)/100 + ");";
 
 				lastCameraPosition = camera.position.clone();
 			}
