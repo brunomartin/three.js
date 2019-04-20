@@ -148,14 +148,8 @@
 		var computationStartTime;
 
 		var cameraPositionCurve;
-		var cameraLookAtCurve;
-		var cameraCurrentLookAt = new THREE.Vector3();
-
-		var startCameraPosition = new THREE.Vector3();
-		var startCameraRotation = new THREE.Vector3();
-
-		var endCameraPosition = new THREE.Vector3();
-		var endCameraRotation = new THREE.Vector3();
+		var cameraLookAtPositionCurve;
+		var cameraCurrentLookAtPosition = new THREE.Vector3();
 
 		var cameraDistance = 1;
 
@@ -345,7 +339,7 @@
 			// camera.position.set( -10, 0, 0 );
 			// camera.up = new THREE.Vector3(0,1,0);
 			camera.lookAt( scene.position );
-			cameraCurrentLookAt.copy(scene.position);
+			cameraCurrentLookAtPosition.copy(scene.position);
 
 			// mirrorCamera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 1000 );
 			// mirrorCamera.position.set( -20, 0, -30 );
@@ -492,7 +486,7 @@
 			position.applyAxisAngle ( new THREE.Vector3(0, 1, 0), -Math.PI/2 );
 			position.multiplyScalar(0.5);
 
-			controlPc.position.add(position.clone());
+			controlPc.position.add(position);
 
 			position = mirror.position.clone().add(wavefrontSensor.position);
 			position.multiplyScalar(0.5);
@@ -556,16 +550,15 @@
 
 			opticalPath = new THREE.OpticalPath();
 
+			scene.add( opticalPath.ray );
+			scene.add( opticalPath.line );
+			scene.add( opticalPath.wavefronts );
+
 			opticalPath.addObject(object);
 			opticalPath.addObject(refractor);
 			opticalPath.addObject(mirror);
 			opticalPath.addObject(beamSplitter);
 			opticalPath.addObject(wavefrontSensor);
-
-			opticalPath.createRay();
-
-			scene.add( opticalPath.line );
-			scene.add( opticalPath.ray );
 
 			// renderer
 
@@ -665,7 +658,6 @@
 
 			generalGui.add(options, 'currentSlide', 1, slideCount).step(1).onChange(function(value) {
 				moveToSlide(value);
-				document.getElementById('slide_info').innerHTML = currentSlide.toString()+'/test';
 			}).listen();
 
 			generalGui.add(options, 'MoveCamera0').listen();
@@ -765,20 +757,6 @@
 			var position = new THREE.Vector3();
 			object.parent.getWorldPosition(position);
 			position.add(point);
-
-			// var line;
-			//
-			// material = new THREE.LineBasicMaterial( { color: 0xB3232D } );
-			// geometry = new THREE.Geometry();
-			//
-			// geometry.vertices.push(position.clone());
-			// geometry.vertices[0].y -= 5;
-			// geometry.vertices.push(position.clone());
-			//
-			// line = new THREE.Line( geometry, material );
-			// scene.add( line );
-			//
-			// labelLines.push(line);
 
 			object.parent.worldToLocal( position );
 			object.position.copy(position);
@@ -1272,25 +1250,26 @@
 				return;
 			}
 
-			startCameraPosition.copy(camera.position.clone());
-			endCameraPosition.copy(position.clone());
-
-			var controlPoint = startCameraPosition.clone().add(endCameraPosition);
+			// position control point behind end camera movement position
+			var controlPoint = position.clone();
 			controlPoint.multiplyScalar(2);
 
-			controlPoint = endCameraPosition.clone();
-			controlPoint.multiplyScalar(2);
+			// create curve
 			cameraPositionCurve = new THREE.QuadraticBezierCurve3(
-				startCameraPosition.clone(),
+				camera.position.clone(),
 				controlPoint.clone(),
-				endCameraPosition.clone()
+				position.clone()
 			);
 
-			cameraLookAtCurve = new THREE.Line3(
-				cameraCurrentLookAt.clone(),
+			// move camera look at point linearly
+			var middlePosition = cameraCurrentLookAtPosition.clone().add(lookAtPosition).multiplyScalar(0.5);
+			cameraLookAtPositionCurve = new THREE.QuadraticBezierCurve3(
+				cameraCurrentLookAtPosition.clone(),
+				middlePosition,
 				lookAtPosition.clone()
 			);
 
+			// set camera distance to zero to start camera movement
 			cameraDistance = 0.;
 		}
 
@@ -1303,10 +1282,7 @@
 			}
 
 			camera.position.copy(cameraPositionCurve.getPoint(cameraDistance));
-
-			cameraLookAtCurve.at(cameraDistance, cameraCurrentLookAt);
-
-			camera.lookAt(cameraCurrentLookAt);
+			camera.lookAt(cameraLookAtPositionCurve.getPoint(cameraDistance));
 
 			if(!showOn) controls.update();
 		}

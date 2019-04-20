@@ -8,12 +8,9 @@ THREE.OpticalPath = function () {
 
   this.objects = [];
 
-  this.geometry = new THREE.Geometry();
-  this.material = new THREE.LineBasicMaterial( { color: 0x0000ff } );
-
-  this.line = new THREE.Line(this.geometry, this.material);
-
-  this.ray;
+  this.line = new THREE.Group();
+  this.ray = new THREE.Group();
+  this.wavefronts = new THREE.Group();
   this.perturbations = [];
   this.rayColors = [];
 
@@ -21,22 +18,51 @@ THREE.OpticalPath = function () {
 
   this.addObject = function(object) {
     self.objects.push(object);
-    self.geometry.vertices.push(object.position.clone());
-    self.line = new THREE.Line(self.geometry, self.material);
+    self.updateLine();
+		self.updateRay();
+		self.updateWavefronts();
   }
 
-  this.createRay = function() {
+  this.updateLine = function() {
+    while(self.line.children.length>0) {
+      self.line.remove(self.line.children[0]);
+    }
 
-    self.ray = new THREE.Group();
+    var geometry = new THREE.Geometry();
+    var material = new THREE.LineBasicMaterial( { color: 0x0000ff } );
+    for(i=0;i<self.objects.length;i++) {
+      geometry.vertices.push(self.objects[i].position.clone());
+    }
 
-    for(i=1;i<self.geometry.vertices.length;i++) {
-      var pointX = self.geometry.vertices[i-1];
-      var pointY = self.geometry.vertices[i];
+    self.line.add(new THREE.Line(geometry, material));
+  }
+
+  this.updateRay = function() {
+
+    self.rayColors = [];
+    self.perturbations = [];
+
+    while(self.ray.children.length>0) {
+      self.ray.remove(self.ray.children[0]);
+    }
+
+    for(i=1;i<self.objects.length;i++) {
+
+      var pointX = self.objects[i-1].position.clone();
+      var pointY = self.objects[i].position.clone();
 
       var direction = new THREE.Vector3().subVectors( pointY, pointX );
       var arrow = new THREE.ArrowHelper( direction, pointX );
 
-      var geometry = new THREE.CylinderGeometry( 4.5, 4.5, direction.length(), 32 );
+      var geometry;
+
+      if(i==1) {
+        geometry = new THREE.ConeGeometry( 4.5, direction.length(), 32 );
+        geometry.rotateX(Math.PI);
+      } else {
+        geometry = new THREE.CylinderGeometry( 4.5, 4.5, direction.length(), 32 );
+      }
+
       var material = new THREE.MeshStandardMaterial();
       material.color = new THREE.Color(0xff0000);
       material.color = new THREE.Color(0xffffff);
@@ -52,6 +78,20 @@ THREE.OpticalPath = function () {
       self.perturbations.push(0.);
 
       self.ray.add(segment);
+    }
+  }
+
+  this.updateWavefronts = function() {
+
+    while(self.wavefronts.children.length>0) {
+      self.wavefronts.remove(self.wavefronts.children[0]);
+    }
+
+    for(i=1;i<self.objects.length;i++) {
+
+      var pointX = self.objects[i-1].position.clone();
+      var pointY = self.objects[i].position.clone();
+      
     }
   }
 
