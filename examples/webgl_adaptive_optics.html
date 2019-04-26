@@ -87,6 +87,9 @@
 		<script src="js/objects/OpticalPath.js"></script>
 		<script src="js/objects/Information.js"></script>
 
+		<script src="js/objects/SlideShow.js"></script>
+		<script src="js/objects/Slide.js"></script>
+
 		<script src="js/renderers/CSS2DRenderer.js"></script>
 
 		<script src="js/math/Lut.js"></script>
@@ -297,6 +300,19 @@
 		}
 
 		controllers['perturbation'].setValue(0.9);
+
+		var slideShow = new THREE.SlideShow;
+
+		var slide = new THREE.Slide;
+		slide.cameraPosition = new THREE.Vector3(200, 200, 200);
+		slide.lookAt = new THREE.Vector3(0, 0, 30);
+		slide.visibleObjects = [
+			object,
+			refractor,
+			observer
+		];
+
+		slideShow.addSlide(slide);
 
 		animate();
 
