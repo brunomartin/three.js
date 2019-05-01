@@ -143,8 +143,8 @@
 
 		var informations = [];
 
-		var informationPath;
-		var informationCables;
+		var informationPath, controlPath, computePath;
+		var informationCables, controlCables, computeCables;
 
 		var computing = false;
 		var hasComputed = false;
@@ -169,8 +169,6 @@
 		var labels = [];
 
 		var textureLoader = new THREE.TextureLoader();
-
-		var controlSystem = [];
 
 		var lastPerturbationTime = 0;
 
@@ -356,9 +354,6 @@
 		slide.onShow = function() {
 			controllers['perturbationOn'].setValue(false);
 		}
-		slide.onHide = function() {
-			controllers['perturbationOn'].setValue(false);
-		}
 		slideShow.addSlide(slide);
 
 		slide = slide.clone();
@@ -366,48 +361,49 @@
 		slide.cameraPosition.copy(cameraSystemViewPosition);
 		slide.cameraLookAtPosition.copy(mirror.position);
 		slide.visibleObjects = [object, refractor, observer, mirror,
-			beamSplitter, wavefrontSensor, opticalPath.line, controlPc, informationCables];
+			beamSplitter, wavefrontSensor, opticalPath.line, controlPc, controlCables];
 		slide.labels = [];
 		slide.onShow = function() {
-			plugInformationCablesToObject(controlPc);
-			controllers['perturbationOn'].setValue(false);
-		}
-		slide.onHide = function() {
-			controllers['perturbationOn'].setValue(false);
+			controllers['wavefrontSensorOn'].setValue(false);
+			mirror.correction = 0.;
 		}
 		slideShow.addSlide(slide);
 
 		slide = slide.clone();
-		slide.title = "Système de contrôle du front d'onde, ACE";
+		slide.title = "Système de contrôle du front d'onde, ACE, static control";
 		slide.cameraPosition.copy(cameraSystemViewPosition);
 		slide.cameraLookAtPosition.copy(mirror.position);
 		slide.visibleObjects.push(opticalPath.ray);
 		slide.labels = [];
 		slide.onShow = function() {
-			plugInformationCablesToObject(controlPc);
+			informationPath = controlPath;
+
+			controllers['acquisitionRate'].setValue(1.0);
+			controllers['computeTime'].setValue(0.5);
+			controllers['transfertSpeed'].setValue(2.0);
+
 			controllers['perturbation'].setValue(1.0);
-			controllers['wavefrontSensorOn'].setValue(false);
-		}
-		slide.onHide = function() {
-			controllers['perturbation'].setValue(1.0);
-			controllers['wavefrontSensorOn'].setValue(false);
+			mirror.correction = 0.;
+			controllers['wavefrontSensorOn'].setValue(true);
 		}
 		slideShow.addSlide(slide);
 
 		slide = slide.clone();
-		slide.title = "Système de contrôle du front d'onde, ACE";
+		slide.title = "Système de contrôle du front d'onde, ACE, dynamic control";
 		slide.cameraPosition.copy(cameraSystemViewPosition);
 		slide.cameraLookAtPosition.copy(mirror.position);
-		slide.visibleObjects.push(computePc);
 		slide.labels = [];
 		slide.onShow = function() {
-			plugInformationCablesToObject(controlPc);
-			controllers['perturbation'].setValue(1.0);
-			controllers['wavefrontSensorOn'].setValue(false);
-		}
-		slide.onHide = function() {
-			controllers['perturbation'].setValue(1.0);
-			controllers['wavefrontSensorOn'].setValue(false);
+			informationPath = controlPath;
+
+			controllers['acquisitionRate'].setValue(1.0);
+			controllers['computeTime'].setValue(0.5);
+			controllers['transfertSpeed'].setValue(2.0);
+
+			mirror.correction = 0.;
+
+			controllers['wavefrontSensorOn'].setValue(true);
+			controllers['animatePerturbation'].setValue(true);
 		}
 		slideShow.addSlide(slide);
 
@@ -415,22 +411,42 @@
 		slide.title = "Système de contrôle du front d'onde, ACEfast";
 		slide.cameraPosition.copy(cameraSystemViewPosition);
 		slide.cameraLookAtPosition.copy(mirror.position);
-		slide.visibleObjects.push(computePc);
+		slide.visibleObjects.splice(slide.visibleObjects.indexOf(controlCables), 1);
+		slide.visibleObjects.push(computePc, computeCables);
 		slide.labels = [];
 		slide.onShow = function() {
-			plugInformationCablesToObject(computePc);
+			informationPath = computePath;
 			controllers['perturbation'].setValue(1.0);
+			mirror.correction = 0.;
 			controllers['wavefrontSensorOn'].setValue(false);
+			controllers['animatePerturbation'].setValue(false);
 		}
-		slide.onHide = function() {
+		slideShow.addSlide(slide);
+		slide = slide.clone();
+
+		slide.title = "Système de contrôle du front d'onde, ACEfast, dynamic control";
+		slide.cameraPosition.copy(cameraSystemViewPosition);
+		slide.cameraLookAtPosition.copy(mirror.position);
+		slide.visibleObjects.splice(slide.visibleObjects.indexOf(controlCables), 1);
+		slide.visibleObjects.push(computePc, computeCables);
+		slide.labels = [];
+		slide.onShow = function() {
+			informationPath = computePath;
+
+			controllers['acquisitionRate'].setValue(10);
+			controllers['computeTime'].setValue(0);
+			controllers['transfertSpeed'].setValue(10);
+
 			controllers['perturbation'].setValue(1.0);
-			controllers['wavefrontSensorOn'].setValue(false);
+			controllers['wavefrontSensorOn'].setValue(true);
+			controllers['animatePerturbation'].setValue(true);
 		}
 		slideShow.addSlide(slide);
 
 
 		slideShow.onStart = function() {
-			plugInformationCablesToObject(controlPc);
+			// plugInformationCablesToObject(controlPc);
+			informationPath = controlPath;
 			controllers['perturbationOn'].setValue(false);
 			controllers['perturbation'].setValue(0.0);
 			controllers['wavefrontSensorOn'].setValue(false);
@@ -577,7 +593,6 @@
 			element = new THREE.Mesh( geometry, material );
 
 			beamSplitter.add(element);
-			controlSystem.push(beamSplitter);
 
 			geometry = new THREE.PlaneBufferGeometry( 20, 20 );
 
@@ -618,7 +633,6 @@
 			wavefrontSensor.acquisitionRate = options.acquisitionRate;
 
 			scene.add( wavefrontSensor );
-			controlSystem.push(wavefrontSensor);
 
 			// Control pc
 
@@ -644,12 +658,32 @@
 			controlPc.lookAt(position);
 
 			scene.add( controlPc );
-			controlSystem.push(controlPc);
 
-			// cables
+			// control cables
+			var space = wavefrontSensor.position.clone().sub(mirror.position);
+			space.multiplyScalar(0.5);
 
-			plugInformationCablesToObject(controlPc);
-			controlSystem.push(informationCables);
+			controlPath = new THREE.CatmullRomCurve3 ( [
+					wavefrontSensor.position.clone(),
+					controlPc.position.clone().add(space),
+					controlPc.position.clone(),
+					controlPc.position.clone().sub(space),
+					mirror.position.clone()
+				],
+				false,
+				'centripetal',
+				0
+			);
+
+			informationPath = controlPath;
+
+			var geometry = new THREE.TubeBufferGeometry( controlPath, 50, 1, 8, false );
+			var material = new THREE.MeshBasicMaterial( { color: 0x555555 } );
+
+			controlCables = new THREE.Mesh( geometry, material );
+			scene.add( controlCables );
+
+			informationCables = controlCables;
 
 			// compute pc
 
@@ -667,9 +701,30 @@
 			computePc.lookAt(position);
 
 			scene.add( computePc );
-			controlSystem.push(computePc);
 
-			plugInformationCablesToObject(computePc);
+			// compute cables
+			var space = wavefrontSensor.position.clone().sub(mirror.position);
+			space.multiplyScalar(0.5);
+
+			computePath = new THREE.CatmullRomCurve3 ( [
+					wavefrontSensor.position.clone(),
+					computePc.position.clone().add(space),
+					computePc.position.clone(),
+					computePc.position.clone().sub(space),
+					mirror.position.clone()
+				],
+				false,
+				'centripetal',
+				0
+			);
+
+			informationPath = computePath;
+
+			var geometry = new THREE.TubeBufferGeometry( computePath, 50, 1, 8, false );
+			var material = new THREE.MeshBasicMaterial( { color: 0x555555 } );
+
+			computeCables = new THREE.Mesh( geometry, material );
+			scene.add( computeCables );
 
 			// light
 
@@ -858,33 +913,31 @@
 			setVisible(object, false);
 		}
 
-
-
-		function plugInformationCablesToObject(object) {
-
-			var space = wavefrontSensor.position.clone().sub(mirror.position);
-			space.multiplyScalar(0.5);
-
-			informationPath = new THREE.CatmullRomCurve3 ( [
-					wavefrontSensor.position.clone(),
-					object.position.clone().add(space),
-					object.position.clone(),
-					object.position.clone().sub(space),
-					mirror.position.clone()
-				],
-				false,
-				'centripetal',
-				0
-			);
-
-			var geometry = new THREE.TubeBufferGeometry( informationPath, 50, 1, 8, false );
-			var material = new THREE.MeshBasicMaterial( { color: 0x555555 } );
-
-			scene.remove(informationCables);
-
-			informationCables = new THREE.Mesh( geometry, material );
-			scene.add( informationCables );
-		}
+		// function plugInformationCablesToObject(object) {
+		//
+		// 	var space = wavefrontSensor.position.clone().sub(mirror.position);
+		// 	space.multiplyScalar(0.5);
+		//
+		// 	informationPath = new THREE.CatmullRomCurve3 ( [
+		// 			wavefrontSensor.position.clone(),
+		// 			object.position.clone().add(space),
+		// 			object.position.clone(),
+		// 			object.position.clone().sub(space),
+		// 			mirror.position.clone()
+		// 		],
+		// 		false,
+		// 		'centripetal',
+		// 		0
+		// 	);
+		//
+		// 	var geometry = new THREE.TubeBufferGeometry( informationPath, 50, 1, 8, false );
+		// 	var material = new THREE.MeshBasicMaterial( { color: 0x555555 } );
+		//
+		// 	scene.remove(informationCables);
+		//
+		// 	informationCables = new THREE.Mesh( geometry, material );
+		// 	scene.add( informationCables );
+		// }
 
 		function setSlideTitle(slideNumber, title) {
 			var title = title;
@@ -1088,7 +1141,7 @@
 						show(element);
 					});
 
-					plugInformationCablesToObject(controlPc);
+					// plugInformationCablesToObject(controlPc);
 
 					labels.forEach(function(element) {
 						element.object.remove(element.label);
@@ -1158,7 +1211,7 @@
 						controllers['renderLabels'].setValue(true);
 					}
 
-					plugInformationCablesToObject(controlPc);
+					// plugInformationCablesToObject(controlPc);
 
 					informations.forEach(function(element) {
 						hide(element);
@@ -1198,7 +1251,7 @@
 						controllers['renderLabels'].setValue(true);
 					}
 
-					plugInformationCablesToObject(controlPc);
+					// plugInformationCablesToObject(controlPc);
 
 					informations.forEach(function(element) {
 						hide(element);
@@ -1240,7 +1293,7 @@
 						controllers['renderLabels'].setValue(true);
 					}
 
-					plugInformationCablesToObject(computePc);
+					// plugInformationCablesToObject(computePc);
 
 					informations.forEach(function(element) {
 						hide(element);
@@ -1282,7 +1335,7 @@
 						hide(element);
 					});
 
-					plugInformationCablesToObject(computePc);
+					// plugInformationCablesToObject(computePc);
 
 					controllers['acquisitionRate'].setValue(5);
 					controllers['computeTime'].setValue(0);
@@ -1304,31 +1357,31 @@
 			}
 		}
 
-		function moveCablesToObject(object) {
-
-			var space = wavefrontSensor.position.clone().sub(mirror.position);
-			space.multiplyScalar(0.5);
-
-			informationPath = new THREE.CatmullRomCurve3 ( [
-					wavefrontSensor.position.clone(),
-					object.position.clone().add(space),
-					object.position.clone(),
-					object.position.clone().sub(space),
-					mirror.position.clone()
-				],
-				false,
-				'centripetal',
-				0
-			);
-
-			var geometry = new THREE.TubeBufferGeometry( informationPath, 50, 1, 8, false );
-			var material = new THREE.MeshBasicMaterial( { color: 0x555555 } );
-
-			scene.remove(informationCables);
-
-			informationCables = new THREE.Mesh( geometry, material );
-			scene.add( informationCables );
-		}
+		// function moveCablesToObject(object) {
+		//
+		// 	var space = wavefrontSensor.position.clone().sub(mirror.position);
+		// 	space.multiplyScalar(0.5);
+		//
+		// 	informationPath = new THREE.CatmullRomCurve3 ( [
+		// 			wavefrontSensor.position.clone(),
+		// 			object.position.clone().add(space),
+		// 			object.position.clone(),
+		// 			object.position.clone().sub(space),
+		// 			mirror.position.clone()
+		// 		],
+		// 		false,
+		// 		'centripetal',
+		// 		0
+		// 	);
+		//
+		// 	var geometry = new THREE.TubeBufferGeometry( informationPath, 50, 1, 8, false );
+		// 	var material = new THREE.MeshBasicMaterial( { color: 0x555555 } );
+		//
+		// 	scene.remove(informationCables);
+		//
+		// 	informationCables = new THREE.Mesh( geometry, material );
+		// 	scene.add( informationCables );
+		// }
 
 		function generateWavefront() {
 			var wavefront = wavefrontFactory.createWavefront(opticalPath.geometry.vertices.slice(2, 5));
