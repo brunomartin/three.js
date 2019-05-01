@@ -301,18 +301,33 @@
 
 		controllers['perturbation'].setValue(0.9);
 
-		var slideShow = new THREE.SlideShow;
+		var slideShow = new THREE.SlideShow(scene, camera);
 
 		var slide = new THREE.Slide;
-		slide.cameraPosition = new THREE.Vector3(200, 200, 200);
-		slide.lookAt = new THREE.Vector3(0, 0, 30);
-		slide.visibleObjects = [
-			object,
-			refractor,
-			observer
+		slide.title = "new Overview";
+		slide.cameraPosition.copy(new THREE.Vector3(200, 200, 200));
+		slide.cameraLookAtPosition.copy(new THREE.Vector3(0, 0, 30));
+		slide.visibleObjects = [object, refractor, observer];
+
+		slide.labels = [
+			{object: object, label: "Objet"},
+			{object: refractor, label: "Perturbation"},
+			{object: observer, label: "Observateur"}
 		];
 
 		slideShow.addSlide(slide);
+
+		slide = slide.clone();
+		slide.title = "new Overview through observer";
+		slide.cameraPosition.copy(observer.position);
+		slide.cameraLookAtPosition.copy(object.position);
+		slide.labels = [];
+		slide.onShow = function() {
+			controllers['perturbationOn'].setValue(true);
+		}
+		slideShow.addSlide(slide);
+
+		slideShow.moveToSlide(0);
 
 		animate();
 
@@ -377,14 +392,17 @@
 			var moonGeometry = new THREE.SphereBufferGeometry( 15, 16, 16 );
 			var moonMaterial = new THREE.MeshPhongMaterial( {
 				shininess: 5,
-				map: textureLoader.load( 'textures/planets/moon_1024.jpg' )
+				map: textureLoader.load(
+					'textures/planets/moon_1024.jpg',
+					function() {scene.add( object )}
+				)
 			} );
 			object = new THREE.Mesh( moonGeometry, moonMaterial );
 
 
 			object.position.set( 0, 0, objectPositionZ );
 
-			scene.add( object );
+			// scene.add( object );
 
 			// Observer
 
@@ -1339,6 +1357,8 @@
 			if(cameraDistance < 1.) {
 				animateCamera(deltaClock);
 			}
+
+			slideShow.animate(deltaClock);
 
 			if(options.animatePerturbation && now > lastPerturbationTime + 2000) {
 				opticalPath.perturbations[1] = Math.random();
