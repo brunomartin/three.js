@@ -156,8 +156,6 @@
 
 		var cameraDistance = 1;
 
-		var cameraTransition = true;
-
 		var slideCount = 11;
 		var currentSlide = 0;
 
@@ -289,6 +287,7 @@
 		// options.MoveCamera2();
 
 		controllers['perturbation'].setValue(0.9);
+		controllers['renderLabels'].setValue(true);
 
 		var cameraOverviewPosition = new THREE.Vector3(107, 116, 172);
 		var cameraSystemViewPosition = new THREE.Vector3(-24, 131, 75);
@@ -302,9 +301,9 @@
 		slide.cameraLookAtPosition.copy(scene.position);
 		slide.visibleObjects = [object, refractor, observer];
 		slide.labels = [
-			{object: object, label: "Objet"},
-			{object: refractor, label: "Perturbation"},
-			{object: observer, label: "Observateur"}
+			{object: object, labelText: "Objet"},
+			{object: refractor, labelText: "Perturbation"},
+			{object: observer, labelText: "Observateur"}
 		];
 		slideShow.addSlide(slide);
 
@@ -362,7 +361,12 @@
 		slide.cameraLookAtPosition.copy(mirror.position);
 		slide.visibleObjects = [object, refractor, observer, mirror,
 			beamSplitter, wavefrontSensor, opticalPath.line, controlPc, controlCables];
-		slide.labels = [];
+		slide.labels = [
+			{object: mirror, labelText: "Mirroir"},
+			{object: beamSplitter, labelText: "Lame Séparatrice"},
+			{object: wavefrontSensor, labelText: "Détecteur de front d\'onde"},
+			{object: controlPc, labelText: "Pc de contrôle"}
+		];
 		slide.onShow = function() {
 			controllers['wavefrontSensorOn'].setValue(false);
 			mirror.correction = 0.;
@@ -413,7 +417,13 @@
 		slide.cameraLookAtPosition.copy(mirror.position);
 		slide.visibleObjects.splice(slide.visibleObjects.indexOf(controlCables), 1);
 		slide.visibleObjects.push(computePc, computeCables);
-		slide.labels = [];
+		slide.labels = [
+			// {object: mirror, labelText: "Mirroir"},
+			// {object: beamSplitter, labelText: "Lame Séparatrice"},
+			// {object: wavefrontSensor, labelText: "Détecteur de front d\'onde"},
+			// {object: controlPc, labelText: "Pc de contrôle"},
+			{object: computePc, labelText: "Pc de calcul temps réél"},
+		];
 		slide.onShow = function() {
 			informationPath = computePath;
 			controllers['perturbation'].setValue(1.0);
@@ -742,15 +752,6 @@
 			var worldPoint = new THREE.Vector3();
 			var point = new THREE.Vector3();
 
-
-			addLabelForObject('Objet', object);
-			addLabelForObject('Observateur', observer);
-			addLabelForObject('Miroir', mirror);
-			addLabelForObject('Perturbation', refractor);
-			addLabelForObject('Lame séparatrice', beamSplitter);
-			addLabelForObject('Détecteur de front d\'onde', wavefrontSensor);
-			addLabelForObject('PC de contrôle', controlPc);
-
 			// opical path
 
 			opticalPath = new THREE.OpticalPath();
@@ -913,48 +914,10 @@
 			setVisible(object, false);
 		}
 
-		// function plugInformationCablesToObject(object) {
-		//
-		// 	var space = wavefrontSensor.position.clone().sub(mirror.position);
-		// 	space.multiplyScalar(0.5);
-		//
-		// 	informationPath = new THREE.CatmullRomCurve3 ( [
-		// 			wavefrontSensor.position.clone(),
-		// 			object.position.clone().add(space),
-		// 			object.position.clone(),
-		// 			object.position.clone().sub(space),
-		// 			mirror.position.clone()
-		// 		],
-		// 		false,
-		// 		'centripetal',
-		// 		0
-		// 	);
-		//
-		// 	var geometry = new THREE.TubeBufferGeometry( informationPath, 50, 1, 8, false );
-		// 	var material = new THREE.MeshBasicMaterial( { color: 0x555555 } );
-		//
-		// 	scene.remove(informationCables);
-		//
-		// 	informationCables = new THREE.Mesh( geometry, material );
-		// 	scene.add( informationCables );
-		// }
-
 		function setSlideTitle(slideNumber, title) {
 			var title = title;
 			title += " (" + slideNumber.toString()+"/"+slideCount.toString() + ")";
 			document.getElementById('slide_info').innerHTML = title;
-		}
-
-		function addLabelForObject(labelText, element) {
-			var div = document.createElement( 'div' );
-			div.className = 'label';
-			div.textContent = labelText;
-			div.style.marginTop = '-1em';
-			var label = new THREE.CSS2DObject( div );
-			element.add( label );
-			globallyAdd(label, new THREE.Vector3(0, 10, 0));
-
-			labels.push({object:element, label: label});
 		}
 
 		function globallyAdd(object, point) {
@@ -981,407 +944,6 @@
 			labelRenderer.setSize( window.innerWidth, window.innerHeight );
 
 		}
-
-		function moveToSlide(slide) {
-			switch (slide) {
-				case 1:
-					setSlideTitle(slide, "Vue d'ensemble");
-
-					[mirror, beamSplitter, wavefrontSensor, opticalPath.line,
-						opticalPath.ray, controlPc, computePc, informationCables
-					].forEach(function(element) {
-						hide(element);
-					});
-
-					labels.forEach(function(element) {
-						element.object.remove(element.label);
-					});
-
-					[observer, refractor, object
-					].forEach(function(element) {
-						show(element);
-					});
-
-					addLabelForObject('Observateur', observer);
-					addLabelForObject('Perturbation', refractor);
-					addLabelForObject('Objet', object);
-
-					if(controllers['renderLabels'].getValue() == false) {
-						controllers['renderLabels'].setValue(true);
-					}
-
-					controllers['perturbationOn'].setValue(false);
-					controllers['wavefrontSensorOn'].setValue(false);
-
-					options.MoveCameraOverView();
-					break;
-				case 2:
-					setSlideTitle(slide, "Vue de l'objet à travers la perturbation");
-
-					[mirror, beamSplitter, wavefrontSensor, opticalPath.line,
-						opticalPath.ray, controlPc, computePc, informationCables
-					].forEach(function(element) {
-						hide(element);
-					});
-
-					[observer, refractor, object
-					].forEach(function(element) {
-						show(element);
-					});
-
-					labels.forEach(function(element) {
-						element.object.remove(element.label);
-					});
-
-					observer.position.copy(observerPosition.clone());
-
-					if(controllers['renderLabels'].getValue() == true) {
-						controllers['renderLabels'].setValue(false);
-					}
-
-					controllers['perturbationOn'].setValue(true);
-					controllers['wavefrontSensorOn'].setValue(false);
-
-					options.MoveCameraObserver();
-					// options.MoveCamera1();
-
-					break;
-				case 3:
-					setSlideTitle(slide, "Miroir déformable");
-
-					[beamSplitter, wavefrontSensor, opticalPath.line,
-						opticalPath.ray, controlPc, computePc, informationCables
-					].forEach(function(element) {
-						hide(element);
-					});
-
-					[observer, mirror
-					].forEach(function(element) {
-						show(element);
-					});
-
-					observer.position.copy(beamSplitter.position.clone().sub(mirror.position).multiplyScalar(3));
-
-					labels.forEach(function(element) {
-						element.object.remove(element.label);
-					});
-
-					addLabelForObject('Observateur', observer);
-					addLabelForObject('Mirroir', mirror);
-					addLabelForObject('Perturbation', refractor);
-					addLabelForObject('Objet', object);
-
-					if(controllers['renderLabels'].getValue() == false) {
-						controllers['renderLabels'].setValue(true);
-					}
-
-					controllers['perturbationOn'].setValue(true);
-					controllers['wavefrontSensorOn'].setValue(false);
-
-					options.MoveCameraOverView();
-
-					break;
-				case 4:
-					setSlideTitle(slide, "Vue à travers le Miroir déformable : déformation du front d'onde");
-
-					[beamSplitter, wavefrontSensor, opticalPath.line,
-						opticalPath.ray, controlPc, computePc, informationCables
-					].forEach(function(element) {
-						hide(element);
-					});
-
-					[observer, mirror
-					].forEach(function(element) {
-						show(element);
-					});
-
-					options.MoveCameraObjectTroughMirror();
-
-					if(controllers['renderLabels'].getValue() == true) {
-						controllers['renderLabels'].setValue(false);
-					}
-
-					controllers['perturbationOn'].setValue(true);
-					controllers['wavefrontSensorOn'].setValue(false);
-
-					break;
-				case 5:
-					setSlideTitle(slide, "Vue à travers le Miroir déformable et correction idéale");
-
-					[observer, beamSplitter, wavefrontSensor, opticalPath.line,
-						opticalPath.ray, controlPc, computePc, informationCables
-					].forEach(function(element) {
-						hide(element);
-					});
-
-					[mirror
-					].forEach(function(element) {
-						show(element);
-					});
-
-					options.MoveCameraObjectTroughMirror();
-
-					if(controllers['renderLabels'].getValue() == true) {
-						controllers['renderLabels'].setValue(false);
-					}
-
-					controllers['perturbationOn'].setValue(false);
-
-					break;
-				case 6:
-					setSlideTitle(slide, "Système de contrôle du front d'onde, ACE");
-					[ opticalPath.ray, computePc
-					].forEach(function(element) {
-						hide(element);
-					});
-
-					[observer, beamSplitter, wavefrontSensor, opticalPath.line,
-						controlPc, informationCables
-					].forEach(function(element) {
-						show(element);
-					});
-
-					// plugInformationCablesToObject(controlPc);
-
-					labels.forEach(function(element) {
-						element.object.remove(element.label);
-					});
-
-					addLabelForObject('Mirroir', mirror);
-					addLabelForObject('Lame Séparatrice', beamSplitter);
-					addLabelForObject('Détecteur de front d\'onde', wavefrontSensor);
-					addLabelForObject('Pc de contrôle', controlPc);
-
-					if(controllers['renderLabels'].getValue() == false) {
-						controllers['renderLabels'].setValue(true);
-					}
-
-					options.MoveCameraSystem();
-
-					break;
-				case 7:
-					setSlideTitle(slide, "Système de contrôle du front d'onde, ACE");
-					[ computePc
-					].forEach(function(element) {
-						hide(element);
-					});
-
-					[beamSplitter, wavefrontSensor, opticalPath.line,
-						controlPc, informationCables, opticalPath.ray
-					].forEach(function(element) {
-						show(element);
-					});
-
-					labels.forEach(function(element) {
-						element.object.remove(element.label);
-					});
-
-					informations.forEach(function(element) {
-						hide(element);
-					});
-
-					if(controllers['renderLabels'].getValue() == false) {
-						controllers['renderLabels'].setValue(true);
-					}
-
-					controllers['perturbation'].setValue(1.0);
-					controllers['wavefrontSensorOn'].setValue(false);
-
-					options.MoveCameraSystem();
-
-					break;
-				case 8:
-					setSlideTitle(slide, "Système de contrôle du front d'onde, ACE, Correction");
-					[ computePc
-					].forEach(function(element) {
-						hide(element);
-					});
-
-					[beamSplitter, wavefrontSensor, opticalPath.line,
-						controlPc, informationCables, opticalPath.ray
-					].forEach(function(element) {
-						show(element);
-					});
-
-					labels.forEach(function(element) {
-						element.object.remove(element.label);
-					});
-
-					if(controllers['renderLabels'].getValue() == false) {
-						controllers['renderLabels'].setValue(true);
-					}
-
-					// plugInformationCablesToObject(controlPc);
-
-					informations.forEach(function(element) {
-						hide(element);
-					});
-
-					controllers['acquisitionRate'].setValue(1.0);
-					controllers['computeTime'].setValue(0.5);
-					controllers['transfertSpeed'].setValue(2.0);
-
-					controllers['perturbation'].setValue(1.0);
-					mirror.correction = 0.;
-					controllers['wavefrontSensorOn'].setValue(true);
-					controllers['animatePerturbation'].setValue(false);
-
-					options.MoveCameraSystem();
-
-					break;
-					break;
-				case 9:
-					setSlideTitle(slide, "Système de contrôle du front d'onde, ACE, Correction dynamique");
-					[ computePc
-					].forEach(function(element) {
-						hide(element);
-					});
-
-					[beamSplitter, wavefrontSensor, opticalPath.line,
-						controlPc, informationCables, opticalPath.ray
-					].forEach(function(element) {
-						show(element);
-					});
-
-					labels.forEach(function(element) {
-						element.object.remove(element.label);
-					});
-
-					if(controllers['renderLabels'].getValue() == false) {
-						controllers['renderLabels'].setValue(true);
-					}
-
-					// plugInformationCablesToObject(controlPc);
-
-					informations.forEach(function(element) {
-						hide(element);
-					});
-
-					controllers['acquisitionRate'].setValue(1.0);
-					controllers['computeTime'].setValue(0.5);
-					controllers['transfertSpeed'].setValue(2.0);
-
-					controllers['perturbation'].setValue(1.0);
-					mirror.correction = 0.;
-					controllers['wavefrontSensorOn'].setValue(true);
-					controllers['animatePerturbation'].setValue(true);
-
-					options.MoveCameraSystem();
-
-					break;
-				case 10:
-					setSlideTitle(slide, "Système de contrôle du front d'onde, ACEfast");
-					[
-					].forEach(function(element) {
-						hide(element);
-					});
-
-					[beamSplitter, wavefrontSensor, opticalPath.line,
-						controlPc, informationCables, opticalPath.ray, computePc
-					].forEach(function(element) {
-						show(element);
-					});
-
-					labels.forEach(function(element) {
-						element.object.remove(element.label);
-					});
-
-					addLabelForObject('Pc de contrôle', controlPc);
-					addLabelForObject('Server de calcul, RTC', computePc);
-
-					if(controllers['renderLabels'].getValue() == false) {
-						controllers['renderLabels'].setValue(true);
-					}
-
-					// plugInformationCablesToObject(computePc);
-
-					informations.forEach(function(element) {
-						hide(element);
-					});
-
-					controllers['acquisitionRate'].setValue(10);
-					controllers['computeTime'].setValue(0);
-					controllers['transfertSpeed'].setValue(10);
-
-					if(controllers['renderLabels'].getValue() == false) {
-						controllers['renderLabels'].setValue(true);
-					}
-
-					mirror.correction = 0.;
-					controllers['wavefrontSensorOn'].setValue(false);
-					controllers['animatePerturbation'].setValue(true);
-
-					options.MoveCameraSystem();
-
-					break;
-				case 11:
-					setSlideTitle(slide, "Système de contrôle du front d'onde, ACEfast, Correction dynamique");
-					[
-					].forEach(function(element) {
-						hide(element);
-					});
-
-					[beamSplitter, wavefrontSensor, opticalPath.line,
-						controlPc, informationCables, opticalPath.ray, computePc
-					].forEach(function(element) {
-						show(element);
-					});
-
-					labels.forEach(function(element) {
-						element.object.remove(element.label);
-					});
-
-					informations.forEach(function(element) {
-						hide(element);
-					});
-
-					// plugInformationCablesToObject(computePc);
-
-					controllers['acquisitionRate'].setValue(5);
-					controllers['computeTime'].setValue(0);
-					controllers['transfertSpeed'].setValue(5);
-
-					if(controllers['renderLabels'].getValue() == false) {
-						controllers['renderLabels'].setValue(true);
-					}
-
-					mirror.correction = 0.;
-					controllers['wavefrontSensorOn'].setValue(true);
-					controllers['animatePerturbation'].setValue(true);
-
-					options.MoveCameraSystem();
-
-					break;
-				default:
-
-			}
-		}
-
-		// function moveCablesToObject(object) {
-		//
-		// 	var space = wavefrontSensor.position.clone().sub(mirror.position);
-		// 	space.multiplyScalar(0.5);
-		//
-		// 	informationPath = new THREE.CatmullRomCurve3 ( [
-		// 			wavefrontSensor.position.clone(),
-		// 			object.position.clone().add(space),
-		// 			object.position.clone(),
-		// 			object.position.clone().sub(space),
-		// 			mirror.position.clone()
-		// 		],
-		// 		false,
-		// 		'centripetal',
-		// 		0
-		// 	);
-		//
-		// 	var geometry = new THREE.TubeBufferGeometry( informationPath, 50, 1, 8, false );
-		// 	var material = new THREE.MeshBasicMaterial( { color: 0x555555 } );
-		//
-		// 	scene.remove(informationCables);
-		//
-		// 	informationCables = new THREE.Mesh( geometry, material );
-		// 	scene.add( informationCables );
-		// }
 
 		function generateWavefront() {
 			var wavefront = wavefrontFactory.createWavefront(opticalPath.geometry.vertices.slice(2, 5));
@@ -1410,56 +972,10 @@
 		}
 
 		function moveCameraTo(position, lookAtPosition) {
-
-			if(!cameraTransition) {
 				camera.position.copy(position);
 				if(!showOn) controls.update();
 				camera.lookAt(lookAtPosition);
-				return;
-			}
-
-			var distance = camera.position.distanceTo(position);
-			if(distance < 0.1) {
-				return;
-			}
-
-			// position control point behind end camera movement position
-			var controlPoint = position.clone();
-			controlPoint.multiplyScalar(2);
-
-			// create curve
-			cameraPositionCurve = new THREE.QuadraticBezierCurve3(
-				camera.position.clone(),
-				controlPoint.clone(),
-				position.clone()
-			);
-
-			// move camera look at point linearly
-			var middlePosition = cameraCurrentLookAtPosition.clone().add(lookAtPosition).multiplyScalar(0.5);
-			cameraLookAtPositionCurve = new THREE.QuadraticBezierCurve3(
-				cameraCurrentLookAtPosition.clone(),
-				middlePosition,
-				lookAtPosition.clone()
-			);
-
-			// set camera distance to zero to start camera movement
-			cameraDistance = 0.;
 		}
-
-		function animateCamera(deltaClock) {
-
-			cameraDistance += deltaClock;
-
-			if(cameraDistance > 1.) {
-				cameraDistance = 1.;
-			}
-
-			camera.position.copy(cameraPositionCurve.getPoint(cameraDistance));
-			camera.lookAt(cameraLookAtPositionCurve.getPoint(cameraDistance));
-
-			if(!showOn) controls.update();
-		}
-
 
 		function animate() {
 				setTimeout( function() {
@@ -1521,10 +1037,6 @@
 					wavefrontSensor.lastAcquisitionTime = clock.elapsedTime;
 					generateInformation();
 				}
-			}
-
-			if(cameraDistance < 1.) {
-				animateCamera(deltaClock);
 			}
 
 			slideShow.animate(deltaClock);

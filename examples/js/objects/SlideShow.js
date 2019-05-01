@@ -63,13 +63,14 @@ THREE.SlideShow = function (scene, camera) {
     // remove displayed labels
     self.labels.forEach(function(element) {
       element.object.remove(element.label);
+      // self.scene.remove(element.label);
     });
 
     self.labels = [];
 
     // display slide labels
     slide.labels.forEach(function(element) {
-      addLabelForObject(element.label, element.object);
+      element.label = self.addLabelForObject(element.labelText, element.object);
       self.labels.push(element);
     });
 
@@ -181,6 +182,8 @@ THREE.SlideShow = function (scene, camera) {
 
 		object.worldToLocal( position );
 		label.position.copy(position);
+
+    return label;
   }
 
   this.onStart = function() {
