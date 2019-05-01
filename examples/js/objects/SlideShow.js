@@ -12,6 +12,8 @@ THREE.SlideShow = function (scene, camera) {
   this.labels = [];
   this.objects = [];
 
+  this.cameraCurrentLookAtPosition = scene.position;
+
   this.cameraPositionCurve = null;
   this.cameraLookAtPositionCurve = null;
 
@@ -135,12 +137,14 @@ THREE.SlideShow = function (scene, camera) {
     );
 
     // move camera look at point linearly
-    var middlePosition = cameraCurrentLookAtPosition.clone().add(lookAtPosition).multiplyScalar(0.5);
+    var middlePosition = self.cameraCurrentLookAtPosition.clone().add(lookAtPosition).multiplyScalar(0.5);
     self.cameraLookAtPositionCurve = new THREE.QuadraticBezierCurve3(
-      cameraCurrentLookAtPosition.clone(),
+      self.cameraCurrentLookAtPosition.clone(),
       middlePosition,
       lookAtPosition.clone()
     );
+
+    self.cameraCurrentLookAtPosition = lookAtPosition;
 
     // set camera distance to zero and start camera movement
     self.cameraDistance = 0.;

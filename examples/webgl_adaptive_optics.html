@@ -150,10 +150,6 @@
 		var hasComputed = false;
 		var computationStartTime;
 
-		var cameraPositionCurve;
-		var cameraLookAtPositionCurve;
-		var cameraCurrentLookAtPosition = new THREE.Vector3();
-
 		var cameraDistance = 1;
 
 		var slideCount = 11;
@@ -512,7 +508,6 @@
 			// camera.position.set( -10, 0, 0 );
 			// camera.up = new THREE.Vector3(0,1,0);
 			camera.lookAt( scene.position );
-			cameraCurrentLookAtPosition.copy(scene.position);
 
 			// mirrorCamera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 1000 );
 			// mirrorCamera.position.set( -20, 0, -30 );
