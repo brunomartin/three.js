@@ -17,10 +17,10 @@ THREE.SlideShow = function (scene, camera) {
 
   this.cameraDistance = 1.;
   this.cameraIsMoving = false;
-  this.cameraTransition = true;
+  this.cameraTransition = false;
   this.cameraSpeed = 1.;
 
-  this.lastSlide = null;
+  this.currentSlideIndex = -1;
 
   var self = this;
 
@@ -29,7 +29,9 @@ THREE.SlideShow = function (scene, camera) {
     self.slides.push(slide);
 
     slide.visibleObjects.forEach(function(object) {
-      self.objects.push(object);
+      if(!self.objects.includes(object)) {
+        self.objects.push(object);
+      }
     });
   }
 
@@ -50,9 +52,11 @@ THREE.SlideShow = function (scene, camera) {
     // hide all object except slide ones
     self.objects.forEach(function(object) {
       if(slide.visibleObjects.includes(object)) {
-        self.scene.add(object);
+        // self.scene.add(object);
+        self.setVisible(object, true);
       } else {
-        self.scene.remove(object);
+        // self.scene.remove(object);
+        self.setVisible(object, false);
       }
     });
 
@@ -69,15 +73,38 @@ THREE.SlideShow = function (scene, camera) {
       self.labels.push(element);
     });
 
-    self.moveCameraTo(slide.cameraPosition, slide.cameraLookAtPosition);
-
-    if(self.lastSlide) {
-      self.lastSlide.onHide();
+    if(self.currentSlideIndex>-1) {
+      self.slides[self.currentSlideIndex].onHide();
     }
 
     slide.onShow();
 
-    self.lastSlide = slide;
+    self.moveCameraTo(slide.cameraPosition, slide.cameraLookAtPosition);
+
+    self.currentSlideIndex = slideIndex;
+  }
+
+  // move to next slide if any
+  this.moveToNextSlide = function() {
+    if(self.currentSlideIndex < self.slides.length - 1) {
+      self.moveToSlide(self.currentSlideIndex+1);
+    }
+  }
+
+    // move to previous slide if any
+  this.moveToPreviousSlide = function() {
+    if(self.currentSlideIndex > 0) {
+      self.moveToSlide(self.currentSlideIndex-1);
+    }
+  }
+
+  this.setVisible = function(object, visible) {
+    object.traverse ( function (child) {
+      if (child instanceof THREE.Mesh) {
+          child.visible = visible;
+      }
+    });
+    object.visible = visible;
   }
 
   // start camera movement
@@ -90,7 +117,8 @@ THREE.SlideShow = function (scene, camera) {
     }
 
     var distance = camera.position.distanceTo(position);
-    if(distance < 0.1) {
+    console.log("SlideShow : distance = " + distance);
+    if(distance < 5) {
       return;
     }
 
@@ -116,6 +144,7 @@ THREE.SlideShow = function (scene, camera) {
     // set camera distance to zero and start camera movement
     self.cameraDistance = 0.;
     self.cameraIsMoving = true;
+    console.log("SlideShow : start moving camera");
   }
 
   this.animate = function(deltaClock) {
@@ -131,6 +160,7 @@ THREE.SlideShow = function (scene, camera) {
     // if more than 1., stop camera movement
     if(self.cameraDistance > 1.) {
       self.cameraIsMoving = false;
+      console.log("SlideShow : stop moving camera");
     }
 
     self.camera.position.copy(self.cameraPositionCurve.getPoint(self.cameraDistance));
@@ -151,6 +181,15 @@ THREE.SlideShow = function (scene, camera) {
 
 		object.worldToLocal( position );
 		label.position.copy(position);
+  }
+
+  this.onStart = function() {
+
+  }
+
+  this.start = function() {
+    self.onStart();
+    self.moveToSlide(0);
   }
 
 };
