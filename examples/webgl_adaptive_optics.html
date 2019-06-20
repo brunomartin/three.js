@@ -448,6 +448,19 @@
 			controllers['animatePerturbation'].setValue(true);
 		}
 		slideShow.addSlide(slide);
+		slide = slide.clone();
+
+		slide.title = "Les dessous d'ACEfast ?";
+		slide.cameraPosition.copy(computePc.position.clone().sub(new THREE.Vector3(0, 0, -20)));
+		slide.cameraLookAtPosition.copy(computePc.position);
+		slide.visibleObjects.splice(slide.visibleObjects.indexOf(controlCables), 1);
+		slide.visibleObjects.push(computePc, computeCables);
+		slide.labels = [];
+		slide.onShow = function() {
+			controllers['wavefrontSensorOn'].setValue(false);
+			controllers['animatePerturbation'].setValue(false);
+		}
+		slideShow.addSlide(slide);
 
 
 		slideShow.onStart = function() {
