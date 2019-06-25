@@ -292,7 +292,7 @@
 		var slideShow = new THREE.SlideShow(scene, camera);
 
 		var slide = new THREE.Slide;
-		slide.title = "new Overview";
+		slide.title = "Aperçu générale";
 		slide.cameraPosition.copy(cameraOverviewPosition);
 		slide.cameraLookAtPosition.copy(scene.position);
 		slide.visibleObjects = [object, refractor, observer];
@@ -304,7 +304,7 @@
 		slideShow.addSlide(slide);
 
 		slide = slide.clone();
-		slide.title = "new Overview through observer";
+		slide.title = "Vue par un observateur";
 		slide.cameraPosition = observer.position; // not a copy, will follow observer position
 		slide.cameraLookAtPosition.copy(object.position);
 		slide.labels = [];
@@ -370,7 +370,7 @@
 		slideShow.addSlide(slide);
 
 		slide = slide.clone();
-		slide.title = "Système de contrôle du front d'onde, ACE, static control";
+		slide.title = "Système de contrôle du front d'onde, ACE, contrôle statique";
 		slide.cameraPosition.copy(cameraSystemViewPosition);
 		slide.cameraLookAtPosition.copy(mirror.position);
 		slide.visibleObjects.push(opticalPath.ray);
@@ -389,7 +389,7 @@
 		slideShow.addSlide(slide);
 
 		slide = slide.clone();
-		slide.title = "Système de contrôle du front d'onde, ACE, dynamic control";
+		slide.title = "Système de contrôle du front d'onde, ACE, contrôle dynamique";
 		slide.cameraPosition.copy(cameraSystemViewPosition);
 		slide.cameraLookAtPosition.copy(mirror.position);
 		slide.labels = [];
@@ -408,7 +408,7 @@
 		slideShow.addSlide(slide);
 
 		slide = slide.clone();
-		slide.title = "Système de contrôle du front d'onde, ACEfast";
+		slide.title = "Système de contrôle du front d'onde, <strong>ACE</strong> <em>fast</em>";
 		slide.cameraPosition.copy(cameraSystemViewPosition);
 		slide.cameraLookAtPosition.copy(mirror.position);
 		slide.visibleObjects.splice(slide.visibleObjects.indexOf(controlCables), 1);
@@ -418,7 +418,7 @@
 			// {object: beamSplitter, labelText: "Lame Séparatrice"},
 			// {object: wavefrontSensor, labelText: "Détecteur de front d\'onde"},
 			// {object: controlPc, labelText: "Pc de contrôle"},
-			{object: computePc, labelText: "Pc de calcul temps réél"},
+			{object: computePc, labelText: "Pc de calcul temps réél, RTC"},
 		];
 		slide.onShow = function() {
 			informationPath = computePath;
@@ -430,7 +430,7 @@
 		slideShow.addSlide(slide);
 		slide = slide.clone();
 
-		slide.title = "Système de contrôle du front d'onde, ACEfast, dynamic control";
+		slide.title = "Système de contrôle du front d'onde, <strong>ACE</strong> <em>fast</em>, dynamic control";
 		slide.cameraPosition.copy(cameraSystemViewPosition);
 		slide.cameraLookAtPosition.copy(mirror.position);
 		slide.visibleObjects.splice(slide.visibleObjects.indexOf(controlCables), 1);
@@ -450,7 +450,7 @@
 		slideShow.addSlide(slide);
 		slide = slide.clone();
 
-		slide.title = "Les dessous d'ACEfast ?";
+		slide.title = "Les dessous d'<strong>ACE</strong> <em>fast</em> ?";
 		slide.cameraPosition.copy(computePc.position.clone().sub(new THREE.Vector3(0, 0, -20)));
 		slide.cameraLookAtPosition.copy(computePc.position);
 		slide.visibleObjects.splice(slide.visibleObjects.indexOf(controlCables), 1);
